@@ -390,6 +390,10 @@ function App() {
     persistJson('jinzhi-settings', nextSettings)
   }
 
+  function updateNoticeDraft<Key extends keyof NoticeResult>(key: Key, value: NoticeResult[Key]) {
+    setNotice((current) => ({ ...current, [key]: value }))
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar" aria-label="产品导航">
@@ -490,15 +494,15 @@ function App() {
                 <div>
                   <p className="section-kicker">
                     <ClipboardList size={16} aria-hidden="true" />
-                    工单预处理
+                    第 1 步 · 收集诉求
                   </p>
-                  <h2>居民诉求智能分析</h2>
+                  <h2>录入工单内容</h2>
                 </div>
                 <span className="status-pill">核心流程</span>
               </div>
 
               <label htmlFor="ticket-input">居民诉求文本</label>
-              <p className="field-helper">演示版不保存到服务器；接入试点数据时需先做脱敏处理。</p>
+              <p className="field-helper">这里是后续 AI 判断和处置流转的唯一输入。语音转写、批量导入和手动编辑，最终都会汇总到这里。</p>
               <textarea
                 id="ticket-input"
                 value={ticket}
@@ -548,7 +552,7 @@ function App() {
                 <div className="button-row compact">
                   <button className="secondary-button" type="button" onClick={transcribeVoiceDraft} disabled={isTranscribing}>
                     {isTranscribing ? <Loader2 className="spin" size={16} aria-hidden="true" /> : <Mic size={16} aria-hidden="true" />}
-                    {isTranscribing ? '转写中' : '转成工单'}
+                    {isTranscribing ? '转写中' : '填入诉求框'}
                   </button>
                 </div>
                 {intakeResult && (
@@ -576,7 +580,7 @@ function App() {
                 <div>
                   <p className="section-kicker">
                     <CheckCircle2 size={16} aria-hidden="true" />
-                    AI 判断
+                    第 2 步 · AI 判断
                   </p>
                   <h2>{analysis.category}</h2>
                 </div>
@@ -613,7 +617,7 @@ function App() {
                 <div>
                   <p className="section-kicker">
                     <Clock3 size={16} aria-hidden="true" />
-                    处置台
+                    第 3 步 · 复核流转
                   </p>
                   <h2>复核与流转</h2>
                 </div>
@@ -983,20 +987,20 @@ function App() {
       )}
 
       {activeView === 'notice' && (
-      <section className="workspace-grid">
+      <section className="notice-workspace">
         <article className="panel" id="notice">
           <div className="panel-heading">
             <div>
               <p className="section-kicker">
                 <Megaphone size={16} aria-hidden="true" />
-                通知生成
+                通知草稿
               </p>
-              <h2>一键生成多版本居民通知</h2>
+              <h2>AI 生成后人工编辑</h2>
             </div>
           </div>
 
           <label htmlFor="notice-input">通知主题</label>
-          <p className="field-helper">根据当前工单类别生成不同语气版本，方便网格员按渠道选择。</p>
+          <p className="field-helper">AI 每次生成会覆盖右侧草稿。发出前可逐字修改，再复制到对应渠道。</p>
           <input
             id="notice-input"
             value={noticePrompt}
@@ -1004,14 +1008,32 @@ function App() {
           />
           <button className="primary-button notice-button" type="button" onClick={generateNotice} disabled={isGenerating}>
             {isGenerating ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <FileText size={18} aria-hidden="true" />}
-            {isGenerating ? '生成中' : '生成通知'}
+            {isGenerating ? '生成中' : 'AI 生成 / 重新生成'}
           </button>
         </article>
 
         <article className="panel notice-output">
-          <NoticeBlock title="正式版" text={notice.formal} copied={copiedKey === 'formal'} onCopy={() => copyText('formal', notice.formal)} />
-          <NoticeBlock title="居民群版" text={notice.friendly} copied={copiedKey === 'friendly'} onCopy={() => copyText('friendly', notice.friendly)} />
-          <NoticeBlock title="短信版" text={notice.sms} copied={copiedKey === 'sms'} onCopy={() => copyText('sms', notice.sms)} />
+          <NoticeBlock
+            title="正式版"
+            text={notice.formal}
+            copied={copiedKey === 'formal'}
+            onChange={(value) => updateNoticeDraft('formal', value)}
+            onCopy={() => copyText('formal', notice.formal)}
+          />
+          <NoticeBlock
+            title="居民群版"
+            text={notice.friendly}
+            copied={copiedKey === 'friendly'}
+            onChange={(value) => updateNoticeDraft('friendly', value)}
+            onCopy={() => copyText('friendly', notice.friendly)}
+          />
+          <NoticeBlock
+            title="短信版"
+            text={notice.sms}
+            copied={copiedKey === 'sms'}
+            onChange={(value) => updateNoticeDraft('sms', value)}
+            onCopy={() => copyText('sms', notice.sms)}
+          />
         </article>
       </section>
       )}
@@ -1164,11 +1186,13 @@ function NoticeBlock({
   title,
   text,
   copied,
+  onChange,
   onCopy,
 }: {
   title: string
   text: string
   copied: boolean
+  onChange: (value: string) => void
   onCopy: () => void
 }) {
   return (
@@ -1180,7 +1204,13 @@ function NoticeBlock({
           {copied ? '已复制' : '复制'}
         </button>
       </div>
-      <p>{text}</p>
+      <textarea
+        className="notice-edit"
+        value={text}
+        onChange={(event) => onChange(event.target.value)}
+        rows={title === '短信版' ? 3 : 5}
+        aria-label={`${title}通知草稿`}
+      />
     </div>
   )
 }

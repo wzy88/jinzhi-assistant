@@ -463,6 +463,14 @@
   gap: 16px;
 }
 
+.notice-workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.48fr) minmax(0, 1fr);
+  gap: 14px;
+  margin-top: 14px;
+  align-items: start;
+}
+
 .account-grid {
   display: grid;
   grid-template-columns: 0.9fr 1.25fr 1fr;
@@ -1010,6 +1018,16 @@ select:focus {
   gap: 12px;
 }
 
+.notice-edit {
+  min-height: 130px;
+  margin-top: 10px;
+  background: #ffffff;
+}
+
+.notice-block:last-child .notice-edit {
+  min-height: 86px;
+}
+
 .notice-title-row {
   display: flex;
   align-items: center;
@@ -1334,6 +1352,7 @@ select:focus {
 
   .workspace-brief,
   .workspace-grid,
+  .notice-workspace,
   .dashboard,
   .account-grid,
   .records-layout,
@@ -1354,6 +1373,7 @@ select:focus {
   .metric-grid,
   .workbench-flow,
   .workspace-grid,
+  .notice-workspace,
   .panel {
     min-width: 0;
   }
