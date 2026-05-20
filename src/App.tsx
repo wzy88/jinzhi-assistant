@@ -457,14 +457,27 @@ function App() {
 
       {activeView === 'workspace' && (
         <>
-          <section className="metric-grid" aria-label="核心指标">
-            {dashboard.metrics.map((metric) => (
-              <article className="metric-card" key={metric.label}>
-                <span>{metric.label}</span>
-                <strong>{metric.value}</strong>
-                <p>{metric.hint}</p>
-              </article>
-            ))}
+          <section className="workbench-flow" aria-label="工单处理流程">
+            <div className="flow-step active">
+              <span>01</span>
+              <strong>收集诉求</strong>
+              <p>文本、导入或方言转写</p>
+            </div>
+            <div className="flow-step">
+              <span>02</span>
+              <strong>AI 判断</strong>
+              <p>分类、摘要、责任部门</p>
+            </div>
+            <div className="flow-step">
+              <span>03</span>
+              <strong>人工复核</strong>
+              <p>确认准确性和优先级</p>
+            </div>
+            <div className="flow-step">
+              <span>04</span>
+              <strong>转派回访</strong>
+              <p>通知居民并沉淀记录</p>
+            </div>
           </section>
 
           <section className="workspace-grid">
@@ -696,6 +709,16 @@ function App() {
                 </div>
               </div>
             </aside>
+          </section>
+
+          <section className="metric-grid compact-metrics" aria-label="核心指标">
+            {dashboard.metrics.map((metric) => (
+              <article className="metric-card" key={metric.label}>
+                <span>{metric.label}</span>
+                <strong>{metric.value}</strong>
+                <p>{metric.hint}</p>
+              </article>
+            ))}
           </section>
         </>
       )}
