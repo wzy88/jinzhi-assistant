@@ -25,6 +25,15 @@
   text-decoration: none;
 }
 
+.brand-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .brand-mark {
   display: grid;
   width: 44px;
@@ -51,23 +60,35 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #ffffff;
 }
 
-.nav-links a {
+.tab-button {
   min-height: 44px;
   display: inline-flex;
   align-items: center;
   border-radius: 8px;
+  border: 0;
   padding: 0 14px;
   color: var(--ink-600);
+  background: transparent;
+  font: inherit;
   font-size: 14px;
-  text-decoration: none;
+  cursor: pointer;
 }
 
-.nav-links a:hover,
-.nav-links a:focus-visible {
+.tab-button:hover,
+.tab-button:focus-visible {
   color: var(--ink-900);
   background: var(--surface-strong);
+}
+
+.tab-button.active {
+  color: #ffffff;
+  background: var(--primary);
 }
 
 .account-chip {
@@ -137,15 +158,15 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 24px;
-  padding: 34px 0 20px;
+  padding: 30px 0 18px;
 }
 
 .workspace-brief h1 {
   max-width: 720px;
   margin: 0;
   color: var(--ink-900);
-  font-size: clamp(30px, 4vw, 48px);
-  line-height: 1.08;
+  font-size: clamp(28px, 3.4vw, 42px);
+  line-height: 1.12;
   letter-spacing: 0;
 }
 

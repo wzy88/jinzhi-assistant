@@ -73,6 +73,52 @@ type UserSettings = {
   showDemoData: boolean
 }
 
+type ViewKey = 'workspace' | 'records' | 'notice' | 'dashboard' | 'account' | 'opc'
+
+const views: Array<{
+  key: ViewKey
+  label: string
+  title: string
+  description: string
+}> = [
+  {
+    key: 'workspace',
+    label: '工作台',
+    title: '居民诉求预处理',
+    description: '集中完成诉求录入、AI 分析、人工复核和入库，适合网格员的日常主流程。',
+  },
+  {
+    key: 'records',
+    label: '处理记录',
+    title: '试点工单沉淀',
+    description: '查看最近处理记录，更新转派和回访状态，把演示过程变成可复核数据。',
+  },
+  {
+    key: 'notice',
+    label: '通知生成',
+    title: '多渠道居民通知',
+    description: '根据当前工单类别生成正式版、居民群版和短信版，减少重复写作。',
+  },
+  {
+    key: 'dashboard',
+    label: '数据看板',
+    title: '高频问题与周报',
+    description: '给社区负责人查看高频问题、复核准确率和周报草稿。',
+  },
+  {
+    key: 'account',
+    label: '账号设置',
+    title: '演示账号与体验偏好',
+    description: '维护演示身份、机构资料和模型/数据偏好，后续可升级为真实账号。',
+  },
+  {
+    key: 'opc',
+    label: 'OPC证据',
+    title: '从 Demo 到试点交付',
+    description: '集中展示比赛证据链、数据边界和下一步真实试点材料。',
+  },
+]
+
 const sampleTickets = [
   '12号楼2单元门口消防通道长期被私家车占用，晚上救护车都进不来，物业说了几次也没人管。',
   '小区东门旁边垃圾桶满了两天没人清理，天气热味道很大，老人孩子路过都受不了。',
@@ -128,6 +174,7 @@ const defaultSettings: UserSettings = {
 
 function App() {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [activeView, setActiveView] = useState<ViewKey>('workspace')
   const [isSignedIn, setIsSignedIn] = useState(() => readJson('jinzhi-auth', true))
   const [profile, setProfile] = useState<UserProfile>(() => readJson('jinzhi-profile', defaultProfile))
   const [settings, setSettings] = useState<UserSettings>(() => readJson('jinzhi-settings', defaultSettings))
@@ -170,6 +217,8 @@ function App() {
       accuracy,
     }
   }, [records])
+
+  const currentView = views.find((view) => view.key === activeView) || views[0]
 
   async function analyzeTicket() {
     setIsAnalyzing(true)
@@ -234,6 +283,7 @@ function App() {
     setTicket(record.text)
     setAnalysis(record.analysis)
     setCurrentRecordId(record.id)
+    setActiveView('workspace')
   }
 
   async function copyText(key: string, text: string) {
@@ -298,7 +348,7 @@ function App() {
   return (
     <main className="app-shell">
       <header className="topbar" aria-label="产品导航">
-        <a className="brand" href="#workspace" aria-label="津智助理首页">
+        <button className="brand brand-button" type="button" onClick={() => setActiveView('workspace')} aria-label="返回工作台">
           <span className="brand-mark" aria-hidden="true">
             津
           </span>
@@ -306,13 +356,19 @@ function App() {
             <strong>津智助理</strong>
             <small>社区网格 AI 工作台</small>
           </span>
-        </a>
-        <nav className="nav-links" aria-label="页面分区">
-          <a href="#account">个人中心</a>
-          <a href="#analyze">工单分析</a>
-          <a href="#records">处理记录</a>
-          <a href="#notice">通知生成</a>
-          <a href="#dashboard">试点看板</a>
+        </button>
+        <nav className="nav-links" aria-label="功能视图">
+          {views.map((view) => (
+            <button
+              className={`tab-button ${activeView === view.key ? 'active' : ''}`}
+              type="button"
+              key={view.key}
+              onClick={() => setActiveView(view.key)}
+              aria-current={activeView === view.key ? 'page' : undefined}
+            >
+              {view.label}
+            </button>
+          ))}
         </nav>
         <div className="account-chip" aria-label="当前账号">
           <span className="avatar" aria-hidden="true">
@@ -329,22 +385,27 @@ function App() {
         </div>
       </header>
 
-      <section className="workspace-brief" id="workspace">
+      <section className="workspace-brief">
         <div>
           <p className="eyebrow">
             <ShieldCheck size={16} aria-hidden="true" />
-            试点演示版 · 可部署到 jinzhi.22dhmv.top
+            试点演示版 · 已上线可体验
           </p>
-          <h1>社区网格工单预处理工作台</h1>
-          <p className="brief-text">
-            面向居民诉求分类、分派建议、通知生成、人工复核和周报沉淀，优先服务初赛演示与社区试点。
-          </p>
+          <h1>{currentView.title}</h1>
+          <p className="brief-text">{currentView.description}</p>
         </div>
         <div className="brief-actions">
-          <a className="primary-link" href="#analyze">
-            <Sparkles size={18} aria-hidden="true" />
-            处理工单
-          </a>
+          {activeView !== 'workspace' ? (
+            <button className="primary-button" type="button" onClick={() => setActiveView('workspace')}>
+              <Sparkles size={18} aria-hidden="true" />
+              去处理工单
+            </button>
+          ) : (
+            <button className="primary-button" type="button" onClick={analyzeTicket} disabled={isAnalyzing}>
+              {isAnalyzing ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <Sparkles size={18} aria-hidden="true" />}
+              {isAnalyzing ? '分析中' : '处理当前工单'}
+            </button>
+          )}
           <button className="secondary-link button-link" type="button" onClick={() => fileInputRef.current?.click()}>
             <Upload size={18} aria-hidden="true" />
             导入样例
@@ -353,155 +414,20 @@ function App() {
         </div>
       </section>
 
-      <section className="metric-grid" aria-label="核心指标">
-        {dashboard.metrics.map((metric) => (
-          <article className="metric-card" key={metric.label}>
-            <span>{metric.label}</span>
-            <strong>{metric.value}</strong>
-            <p>{metric.hint}</p>
-          </article>
-        ))}
-      </section>
+      {activeView === 'workspace' && (
+        <>
+          <section className="metric-grid" aria-label="核心指标">
+            {dashboard.metrics.map((metric) => (
+              <article className="metric-card" key={metric.label}>
+                <span>{metric.label}</span>
+                <strong>{metric.value}</strong>
+                <p>{metric.hint}</p>
+              </article>
+            ))}
+          </section>
 
-      <section className="account-grid" id="account">
-        <article className="panel account-panel">
-          <div className="panel-heading">
-            <div>
-              <p className="section-kicker">
-                <UserRound size={16} aria-hidden="true" />
-                账号与认证
-              </p>
-              <h2>{isSignedIn ? '演示账号已登录' : '访客体验模式'}</h2>
-            </div>
-            <span className={`verify-pill ${profile.verified ? 'verified' : ''}`}>
-              <BadgeCheck size={15} aria-hidden="true" />
-              {profile.verified ? '已认证' : '待认证'}
-            </span>
-          </div>
-          {isSignedIn ? (
-            <div className="profile-summary">
-              <strong>{profile.organization}</strong>
-              <p>{profile.serviceArea}</p>
-              <div className="summary-tags">
-                <span>{profile.role}</span>
-                <span>{settings.modelMode === 'cloud' ? '云端模型优先' : '演示规则引擎'}</span>
-              </div>
-            </div>
-          ) : (
-            <div className="login-form">
-              <label htmlFor="auth-phone">手机号</label>
-              <input id="auth-phone" value={authPhone} onChange={(event) => setAuthPhone(event.target.value)} />
-              <label htmlFor="auth-password">密码</label>
-              <input
-                id="auth-password"
-                type="password"
-                value={authPassword}
-                onChange={(event) => setAuthPassword(event.target.value)}
-              />
-              <button className="primary-button" type="button" onClick={loginDemo}>
-                <KeyRound size={18} aria-hidden="true" />
-                演示登录
-              </button>
-            </div>
-          )}
-        </article>
-
-        <article className="panel profile-panel">
-          <div className="panel-heading">
-            <div>
-              <p className="section-kicker">
-                <UserRound size={16} aria-hidden="true" />
-                个人资料
-              </p>
-              <h2>资料编辑</h2>
-            </div>
-          </div>
-          <div className="form-grid">
-            <label>
-              姓名
-              <input value={profile.name} onChange={(event) => setProfile({ ...profile, name: event.target.value })} />
-            </label>
-            <label>
-              手机号
-              <input value={profile.phone} onChange={(event) => setProfile({ ...profile, phone: event.target.value })} />
-            </label>
-            <label>
-              所属机构
-              <input value={profile.organization} onChange={(event) => setProfile({ ...profile, organization: event.target.value })} />
-            </label>
-            <label>
-              岗位角色
-              <input value={profile.role} onChange={(event) => setProfile({ ...profile, role: event.target.value })} />
-            </label>
-          </div>
-          <label htmlFor="service-area">服务片区</label>
-          <input
-            id="service-area"
-            value={profile.serviceArea}
-            onChange={(event) => setProfile({ ...profile, serviceArea: event.target.value })}
-          />
-          <div className="button-row">
-            <button className="secondary-button" type="button" onClick={saveProfile}>
-              <Save size={16} aria-hidden="true" />
-              {profileSaved ? '已保存' : '保存资料'}
-            </button>
-            <button className="secondary-button" type="button" onClick={() => setProfile({ ...profile, verified: !profile.verified })}>
-              <BadgeCheck size={16} aria-hidden="true" />
-              {profile.verified ? '取消认证演示' : '模拟认证通过'}
-            </button>
-          </div>
-        </article>
-
-        <article className="panel settings-panel">
-          <div className="panel-heading">
-            <div>
-              <p className="section-kicker">
-                <Settings size={16} aria-hidden="true" />
-                设置
-              </p>
-              <h2>体验偏好</h2>
-            </div>
-          </div>
-          <label htmlFor="model-mode">模型模式</label>
-          <select
-            id="model-mode"
-            value={settings.modelMode}
-            onChange={(event) => updateSetting('modelMode', event.target.value as UserSettings['modelMode'])}
-          >
-            <option value="demo">演示规则引擎</option>
-            <option value="cloud">云端模型优先</option>
-          </select>
-          <div className="toggle-list">
-            <label className="toggle-row">
-              <input
-                type="checkbox"
-                checked={settings.maskSensitiveInfo}
-                onChange={(event) => updateSetting('maskSensitiveInfo', event.target.checked)}
-              />
-              <span>默认提示脱敏处理</span>
-            </label>
-            <label className="toggle-row">
-              <input
-                type="checkbox"
-                checked={settings.showDemoData}
-                onChange={(event) => updateSetting('showDemoData', event.target.checked)}
-              />
-              <span>显示演示样例数据</span>
-            </label>
-            <label className="toggle-row">
-              <input
-                type="checkbox"
-                checked={settings.saveLocalRecords}
-                onChange={(event) => updateSetting('saveLocalRecords', event.target.checked)}
-              />
-              <span>允许本地保留处理记录</span>
-            </label>
-          </div>
-        </article>
-      </section>
-
-      <section className="workspace-grid">
-        <article className="panel input-panel" id="analyze">
+          <section className="workspace-grid">
+            <article className="panel input-panel">
           <div className="panel-heading">
             <div>
               <p className="section-kicker">
@@ -600,7 +526,149 @@ function App() {
           </div>
         </article>
       </section>
+        </>
+      )}
 
+      {activeView === 'account' && (
+        <section className="account-grid">
+          <article className="panel account-panel">
+            <div className="panel-heading">
+              <div>
+                <p className="section-kicker">
+                  <UserRound size={16} aria-hidden="true" />
+                  账号与认证
+                </p>
+                <h2>{isSignedIn ? '演示账号已登录' : '访客体验模式'}</h2>
+              </div>
+              <span className={`verify-pill ${profile.verified ? 'verified' : ''}`}>
+                <BadgeCheck size={15} aria-hidden="true" />
+                {profile.verified ? '已认证' : '待认证'}
+              </span>
+            </div>
+            {isSignedIn ? (
+              <div className="profile-summary">
+                <strong>{profile.organization}</strong>
+                <p>{profile.serviceArea}</p>
+                <div className="summary-tags">
+                  <span>{profile.role}</span>
+                  <span>{settings.modelMode === 'cloud' ? '云端模型优先' : '演示规则引擎'}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="login-form">
+                <label htmlFor="auth-phone">手机号</label>
+                <input id="auth-phone" value={authPhone} onChange={(event) => setAuthPhone(event.target.value)} />
+                <label htmlFor="auth-password">密码</label>
+                <input
+                  id="auth-password"
+                  type="password"
+                  value={authPassword}
+                  onChange={(event) => setAuthPassword(event.target.value)}
+                />
+                <button className="primary-button" type="button" onClick={loginDemo}>
+                  <KeyRound size={18} aria-hidden="true" />
+                  演示登录
+                </button>
+              </div>
+            )}
+          </article>
+
+          <article className="panel profile-panel">
+            <div className="panel-heading">
+              <div>
+                <p className="section-kicker">
+                  <UserRound size={16} aria-hidden="true" />
+                  个人资料
+                </p>
+                <h2>资料编辑</h2>
+              </div>
+            </div>
+            <div className="form-grid">
+              <label>
+                姓名
+                <input value={profile.name} onChange={(event) => setProfile({ ...profile, name: event.target.value })} />
+              </label>
+              <label>
+                手机号
+                <input value={profile.phone} onChange={(event) => setProfile({ ...profile, phone: event.target.value })} />
+              </label>
+              <label>
+                所属机构
+                <input value={profile.organization} onChange={(event) => setProfile({ ...profile, organization: event.target.value })} />
+              </label>
+              <label>
+                岗位角色
+                <input value={profile.role} onChange={(event) => setProfile({ ...profile, role: event.target.value })} />
+              </label>
+            </div>
+            <label htmlFor="service-area">服务片区</label>
+            <input
+              id="service-area"
+              value={profile.serviceArea}
+              onChange={(event) => setProfile({ ...profile, serviceArea: event.target.value })}
+            />
+            <div className="button-row">
+              <button className="secondary-button" type="button" onClick={saveProfile}>
+                <Save size={16} aria-hidden="true" />
+                {profileSaved ? '已保存' : '保存资料'}
+              </button>
+              <button className="secondary-button" type="button" onClick={() => setProfile({ ...profile, verified: !profile.verified })}>
+                <BadgeCheck size={16} aria-hidden="true" />
+                {profile.verified ? '取消认证演示' : '模拟认证通过'}
+              </button>
+            </div>
+          </article>
+
+          <article className="panel settings-panel">
+            <div className="panel-heading">
+              <div>
+                <p className="section-kicker">
+                  <Settings size={16} aria-hidden="true" />
+                  设置
+                </p>
+                <h2>体验偏好</h2>
+              </div>
+            </div>
+            <label htmlFor="model-mode">模型模式</label>
+            <select
+              id="model-mode"
+              value={settings.modelMode}
+              onChange={(event) => updateSetting('modelMode', event.target.value as UserSettings['modelMode'])}
+            >
+              <option value="demo">演示规则引擎</option>
+              <option value="cloud">云端模型优先</option>
+            </select>
+            <div className="toggle-list">
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  checked={settings.maskSensitiveInfo}
+                  onChange={(event) => updateSetting('maskSensitiveInfo', event.target.checked)}
+                />
+                <span>默认提示脱敏处理</span>
+              </label>
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  checked={settings.showDemoData}
+                  onChange={(event) => updateSetting('showDemoData', event.target.checked)}
+                />
+                <span>显示演示样例数据</span>
+              </label>
+              <label className="toggle-row">
+                <input
+                  type="checkbox"
+                  checked={settings.saveLocalRecords}
+                  onChange={(event) => updateSetting('saveLocalRecords', event.target.checked)}
+                />
+                <span>允许本地保留处理记录</span>
+              </label>
+            </div>
+          </article>
+        </section>
+      )}
+
+      {activeView === 'records' && (
       <section className="panel record-panel" id="records">
         <div className="panel-heading">
           <div>
@@ -650,7 +718,9 @@ function App() {
           ))}
         </div>
       </section>
+      )}
 
+      {activeView === 'notice' && (
       <section className="workspace-grid">
         <article className="panel" id="notice">
           <div className="panel-heading">
@@ -682,7 +752,9 @@ function App() {
           <NoticeBlock title="短信版" text={notice.sms} copied={copiedKey === 'sms'} onCopy={() => copyText('sms', notice.sms)} />
         </article>
       </section>
+      )}
 
+      {activeView === 'dashboard' && (
       <section className="dashboard" id="dashboard">
         <div className="panel chart-panel">
           <div className="panel-heading">
@@ -731,7 +803,10 @@ function App() {
           </div>
         </div>
       </section>
+      )}
 
+      {activeView === 'opc' && (
+        <>
       <section className="dashboard">
         <div className="panel report-panel">
           <p className="section-kicker">
@@ -785,6 +860,8 @@ function App() {
           </div>
         </div>
       </section>
+        </>
+      )}
     </main>
   )
 }
