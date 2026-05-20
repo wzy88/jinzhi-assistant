@@ -219,6 +219,7 @@ function App() {
   }, [records])
 
   const currentView = views.find((view) => view.key === activeView) || views[0]
+  const currentRecord = records.find((record) => record.id === currentRecordId)
 
   async function analyzeTicket() {
     setIsAnalyzing(true)
@@ -428,104 +429,168 @@ function App() {
 
           <section className="workspace-grid">
             <article className="panel input-panel">
-          <div className="panel-heading">
-            <div>
-              <p className="section-kicker">
-                <ClipboardList size={16} aria-hidden="true" />
-                工单预处理
-              </p>
-              <h2>居民诉求智能分析</h2>
-            </div>
-            <span className="status-pill">核心流程</span>
-          </div>
+              <div className="panel-heading">
+                <div>
+                  <p className="section-kicker">
+                    <ClipboardList size={16} aria-hidden="true" />
+                    工单预处理
+                  </p>
+                  <h2>居民诉求智能分析</h2>
+                </div>
+                <span className="status-pill">核心流程</span>
+              </div>
 
-          <label htmlFor="ticket-input">居民诉求文本</label>
-          <p className="field-helper">演示版不保存到服务器；接入试点数据时需先做脱敏处理。</p>
-          <textarea
-            id="ticket-input"
-            value={ticket}
-            onChange={(event) => setTicket(event.target.value)}
-            rows={8}
-          />
-          <div className="sample-row" aria-label="示例诉求">
-            {sampleTickets.map((sample, index) => (
-              <button type="button" key={sample} onClick={() => setTicket(sample)}>
-                示例 {index + 1}
-              </button>
-            ))}
-          </div>
-          <div className="button-row">
-            <button className="primary-button" type="button" onClick={analyzeTicket} disabled={isAnalyzing}>
-              {isAnalyzing ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <Send size={18} aria-hidden="true" />}
-              {isAnalyzing ? '分析中' : '智能分析并入库'}
-            </button>
-            <button className="secondary-button" type="button" onClick={() => fileInputRef.current?.click()}>
-              <Upload size={18} aria-hidden="true" />
-              批量导入
-            </button>
-          </div>
-        </article>
+              <label htmlFor="ticket-input">居民诉求文本</label>
+              <p className="field-helper">演示版不保存到服务器；接入试点数据时需先做脱敏处理。</p>
+              <textarea
+                id="ticket-input"
+                value={ticket}
+                onChange={(event) => setTicket(event.target.value)}
+                rows={8}
+              />
+              <div className="sample-row" aria-label="示例诉求">
+                {sampleTickets.map((sample, index) => (
+                  <button type="button" key={sample} onClick={() => setTicket(sample)}>
+                    示例 {index + 1}
+                  </button>
+                ))}
+              </div>
+              <div className="button-row">
+                <button className="primary-button" type="button" onClick={analyzeTicket} disabled={isAnalyzing}>
+                  {isAnalyzing ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <Send size={18} aria-hidden="true" />}
+                  {isAnalyzing ? '分析中' : '智能分析并入库'}
+                </button>
+                <button className="secondary-button" type="button" onClick={() => fileInputRef.current?.click()}>
+                  <Upload size={18} aria-hidden="true" />
+                  批量导入
+                </button>
+              </div>
+            </article>
 
-        <article className="panel result-panel" aria-live="polite">
-          <div className="panel-heading">
-            <div>
-              <p className="section-kicker">
-                <CheckCircle2 size={16} aria-hidden="true" />
-                分析结果
-              </p>
-              <h2>{analysis.category}</h2>
-            </div>
-            <span className={`urgency urgency-${analysis.urgency}`}>{analysis.urgency}优先级</span>
-          </div>
+            <article className="panel result-panel" aria-live="polite">
+              <div className="panel-heading">
+                <div>
+                  <p className="section-kicker">
+                    <CheckCircle2 size={16} aria-hidden="true" />
+                    AI 判断
+                  </p>
+                  <h2>{analysis.category}</h2>
+                </div>
+                <span className={`urgency urgency-${analysis.urgency}`}>{analysis.urgency}优先级</span>
+              </div>
 
-          <div className="result-grid">
-            <div>
-              <span>诉求类别</span>
-              <strong>{analysis.category}</strong>
-            </div>
-            <div>
-              <span>情绪标签</span>
-              <strong>{analysis.emotion}</strong>
-            </div>
-            <div>
-              <span>建议部门</span>
-              <strong>{analysis.department}</strong>
-            </div>
-            <div>
-              <span>置信度</span>
-              <strong>{confidencePercent}%</strong>
-            </div>
-          </div>
+              <div className="result-grid">
+                <div>
+                  <span>诉求类别</span>
+                  <strong>{analysis.category}</strong>
+                </div>
+                <div>
+                  <span>情绪标签</span>
+                  <strong>{analysis.emotion}</strong>
+                </div>
+                <div>
+                  <span>建议部门</span>
+                  <strong>{analysis.department}</strong>
+                </div>
+                <div>
+                  <span>置信度</span>
+                  <strong>{confidencePercent}%</strong>
+                </div>
+              </div>
 
-          <div className="summary-box">
-            <span>摘要</span>
-            <p>{analysis.summary}</p>
-          </div>
+              <div className="summary-box">
+                <span>摘要</span>
+                <p>{analysis.summary}</p>
+              </div>
+            </article>
 
-          <div className="steps">
-            <span>建议动作</span>
-            <ol>
-              {analysis.nextSteps.map((step) => (
-                <li key={step}>{step}</li>
-              ))}
-            </ol>
-          </div>
+            <aside className="panel action-panel" aria-label="工单处置台">
+              <div className="panel-heading">
+                <div>
+                  <p className="section-kicker">
+                    <Clock3 size={16} aria-hidden="true" />
+                    处置台
+                  </p>
+                  <h2>复核与流转</h2>
+                </div>
+              </div>
 
-          <div className="review-box">
-            <span>人工复核</span>
-            <div className="button-row compact">
-              <button className="secondary-button" type="button" onClick={() => reviewCurrent('正确')}>
-                <Check size={16} aria-hidden="true" />
-                判断正确
-              </button>
-              <button className="secondary-button danger-soft" type="button" onClick={() => reviewCurrent('需调整')}>
-                <XCircle size={16} aria-hidden="true" />
-                需调整
-              </button>
-            </div>
-          </div>
-        </article>
-      </section>
+              <div className="state-grid">
+                <div className="state-tile">
+                  <span>流转状态</span>
+                  <strong>{currentRecord?.status || '待转派'}</strong>
+                </div>
+                <div className="state-tile">
+                  <span>人工复核</span>
+                  <strong>{currentRecord?.review || '待复核'}</strong>
+                </div>
+                <div className="state-tile wide">
+                  <span>当前记录</span>
+                  <strong>{currentRecord?.createdAt || '尚未入库'}</strong>
+                </div>
+              </div>
+
+              <label htmlFor="current-status">流转状态</label>
+              <select
+                id="current-status"
+                value={currentRecord?.status || '待转派'}
+                onChange={(event) => currentRecord && updateStatus(currentRecord.id, event.target.value as TicketStatus)}
+                disabled={!currentRecord}
+              >
+                <option value="待转派">待转派</option>
+                <option value="已转派">已转派</option>
+                <option value="已回访">已回访</option>
+              </select>
+
+              <div className="action-stack" aria-label="快捷处置">
+                <button className="secondary-button" type="button" onClick={() => reviewCurrent('正确')} disabled={!currentRecord}>
+                  <Check size={16} aria-hidden="true" />
+                  判断正确
+                </button>
+                <button className="secondary-button danger-soft" type="button" onClick={() => reviewCurrent('需调整')} disabled={!currentRecord}>
+                  <XCircle size={16} aria-hidden="true" />
+                  需调整
+                </button>
+                <button
+                  className="primary-button"
+                  type="button"
+                  onClick={() => {
+                    setNoticePrompt(`${analysis.category}处置进展提醒`)
+                    setActiveView('notice')
+                  }}
+                >
+                  <Megaphone size={16} aria-hidden="true" />
+                  生成通知
+                </button>
+              </div>
+
+              <div className="steps action-steps">
+                <span>下一步动作</span>
+                <ol>
+                  {analysis.nextSteps.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+
+              <div className="mini-records">
+                <span>最近工单</span>
+                <div className="mini-record-list">
+                  {records.slice(0, 3).map((record) => (
+                    <button
+                      className={`mini-record-button ${record.id === currentRecordId ? 'active' : ''}`}
+                      type="button"
+                      key={record.id}
+                      onClick={() => loadRecord(record)}
+                    >
+                      <strong>{record.analysis.category}</strong>
+                      <small>{record.createdAt} · {record.status}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </aside>
+          </section>
         </>
       )}
 
