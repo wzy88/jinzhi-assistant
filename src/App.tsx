@@ -5,7 +5,6 @@ import {
   BarChart3,
   Building2,
   CalendarDays,
-  Check,
   CheckCircle2,
   ClipboardList,
   Clock3,
@@ -28,7 +27,6 @@ import {
   Sparkles,
   Upload,
   UserRound,
-  XCircle,
 } from 'lucide-react'
 import './App.css'
 
@@ -67,6 +65,9 @@ type TicketRecord = {
   analysis: AnalysisResult
   review: ReviewState
   status: TicketStatus
+  assignee: string
+  follower: string
+  dueAt: string
   createdAt: string
 }
 
@@ -168,6 +169,9 @@ const initialRecords: TicketRecord[] = sampleTickets.map((text, index) => ({
   analysis: buildLocalAnalysis(text),
   review: index === 0 ? '正确' : '待复核',
   status: index === 0 ? '已转派' : '待转派',
+  assignee: index === 0 ? '物业服务中心' : '待分配',
+  follower: index === 0 ? '王明' : '待指定',
+  dueAt: index === 0 ? '今日 18:00 前回访' : '24 小时内跟进',
   createdAt: `05-20 ${String(9 + index).padStart(2, '0')}:30`,
 }))
 
@@ -316,8 +320,10 @@ function App() {
     )
   }
 
-  function reviewCurrent(review: ReviewState) {
-    updateReview(currentRecordId, review)
+  function updateRecordField<Key extends keyof TicketRecord>(recordId: string, key: Key, value: TicketRecord[Key]) {
+    setRecords((current) =>
+      current.map((record) => (record.id === recordId ? { ...record, [key]: value } : record)),
+    )
   }
 
   function selectRecord(record: TicketRecord) {
@@ -450,10 +456,7 @@ function App() {
               去处理工单
             </button>
           ) : (
-            <button className="primary-button" type="button" onClick={analyzeTicket} disabled={isAnalyzing}>
-              {isAnalyzing ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <Sparkles size={18} aria-hidden="true" />}
-              {isAnalyzing ? '分析中' : '处理当前工单'}
-            </button>
+            <span className="brief-status">当前工单待分析</span>
           )}
           <button className="secondary-link button-link" type="button" onClick={() => fileInputRef.current?.click()}>
             <Upload size={18} aria-hidden="true" />
@@ -503,6 +506,13 @@ function App() {
 
               <label htmlFor="ticket-input">居民诉求文本</label>
               <p className="field-helper">这里是后续 AI 判断和处置流转的唯一输入。语音转写、批量导入和手动编辑，最终都会汇总到这里。</p>
+              <div className="primary-action-strip">
+                <button className="primary-button" type="button" onClick={analyzeTicket} disabled={isAnalyzing}>
+                  {isAnalyzing ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <Send size={18} aria-hidden="true" />}
+                  {isAnalyzing ? '分析中' : 'AI 分析并入库'}
+                </button>
+                <span>填好或粘贴诉求后点击，系统会生成分类、摘要和建议转派对象。</span>
+              </div>
               <textarea
                 id="ticket-input"
                 value={ticket}
@@ -517,14 +527,14 @@ function App() {
                 ))}
               </div>
 
-              <div className="intake-box" aria-label="语音方言接入">
-                <div className="intake-title">
+              <details className="intake-box" aria-label="语音方言接入">
+                <summary className="intake-title">
                   <span>
                     <Mic size={15} aria-hidden="true" />
-                    语音 / 方言入口
+                    从语音 / 方言文本填入
                   </span>
-                  <strong>{intakeResult ? `${Math.round(intakeResult.confidence * 100)}%` : '演示'}</strong>
-                </div>
+                  <strong>{intakeResult ? `${Math.round(intakeResult.confidence * 100)}%` : '可选'}</strong>
+                </summary>
                 <div className="intake-controls">
                   <label htmlFor="dialect-mode">
                     口音类型
@@ -561,18 +571,7 @@ function App() {
                     <p>{intakeResult.normalizedText}</p>
                   </div>
                 )}
-              </div>
-
-              <div className="button-row">
-                <button className="primary-button" type="button" onClick={analyzeTicket} disabled={isAnalyzing}>
-                  {isAnalyzing ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <Send size={18} aria-hidden="true" />}
-                  {isAnalyzing ? '分析中' : '智能分析并入库'}
-                </button>
-                <button className="secondary-button" type="button" onClick={() => fileInputRef.current?.click()}>
-                  <Upload size={18} aria-hidden="true" />
-                  批量导入
-                </button>
-              </div>
+              </details>
             </article>
 
             <article className="panel result-panel" aria-live="polite">
@@ -650,15 +649,49 @@ function App() {
                 <option value="已回访">已回访</option>
               </select>
 
+              <div className="assignment-box">
+                <label htmlFor="assignee">
+                  转派对象
+                  <input
+                    id="assignee"
+                    value={currentRecord?.assignee || analysis.department}
+                    onChange={(event) => currentRecord && updateRecordField(currentRecord.id, 'assignee', event.target.value)}
+                    disabled={!currentRecord}
+                  />
+                </label>
+                <label htmlFor="follower">
+                  跟进人
+                  <input
+                    id="follower"
+                    value={currentRecord?.follower || profile.name}
+                    onChange={(event) => currentRecord && updateRecordField(currentRecord.id, 'follower', event.target.value)}
+                    disabled={!currentRecord}
+                  />
+                </label>
+                <label htmlFor="due-at">
+                  回访期限
+                  <input
+                    id="due-at"
+                    value={currentRecord?.dueAt || '24 小时内跟进'}
+                    onChange={(event) => currentRecord && updateRecordField(currentRecord.id, 'dueAt', event.target.value)}
+                    disabled={!currentRecord}
+                  />
+                </label>
+              </div>
+
+              <label htmlFor="current-review">人工复核</label>
+              <select
+                id="current-review"
+                value={currentRecord?.review || '待复核'}
+                onChange={(event) => currentRecord && updateReview(currentRecord.id, event.target.value as ReviewState)}
+                disabled={!currentRecord}
+              >
+                <option value="待复核">待复核</option>
+                <option value="正确">判断正确</option>
+                <option value="需调整">需调整</option>
+              </select>
+
               <div className="action-stack" aria-label="快捷处置">
-                <button className="secondary-button" type="button" onClick={() => reviewCurrent('正确')} disabled={!currentRecord}>
-                  <Check size={16} aria-hidden="true" />
-                  判断正确
-                </button>
-                <button className="secondary-button danger-soft" type="button" onClick={() => reviewCurrent('需调整')} disabled={!currentRecord}>
-                  <XCircle size={16} aria-hidden="true" />
-                  需调整
-                </button>
                 <button
                   className="primary-button"
                   type="button"
@@ -954,6 +987,14 @@ function App() {
                     <span>部门</span>
                     <strong>{currentRecord.analysis.department}</strong>
                   </div>
+                  <div>
+                    <span>转派对象</span>
+                    <strong>{currentRecord.assignee}</strong>
+                  </div>
+                  <div>
+                    <span>跟进人 / 期限</span>
+                    <strong>{currentRecord.follower} · {currentRecord.dueAt}</strong>
+                  </div>
                 </div>
                 <div className="summary-box">
                   <span>摘要</span>
@@ -1222,6 +1263,9 @@ function createRecord(text: string, result: AnalysisResult): TicketRecord {
     analysis: result,
     review: '待复核',
     status: '待转派',
+    assignee: result.department,
+    follower: '王明',
+    dueAt: result.urgency === '高' ? '今日 18:00 前回访' : '24 小时内跟进',
     createdAt: formatNow(),
   }
 }
