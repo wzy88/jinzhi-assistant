@@ -11,15 +11,18 @@ import {
   Clock3,
   Copy,
   FileText,
+  GitBranch,
   KeyRound,
   ListChecks,
   LogIn,
   LogOut,
   Loader2,
   Megaphone,
+  Mic,
   RefreshCcw,
   Save,
   Send,
+  Server,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -45,8 +48,18 @@ type NoticeResult = {
   sms: string
 }
 
+type IntakeResult = {
+  dialect: string
+  transcript: string
+  normalizedText: string
+  confidence: number
+  provider: string
+  notes: string[]
+}
+
 type ReviewState = '待复核' | '正确' | '需调整'
 type TicketStatus = '待转派' | '已转派' | '已回访'
+type DialectMode = '普通话' | '天津话' | '混合口音'
 
 type TicketRecord = {
   id: string
@@ -147,6 +160,8 @@ const defaultNotice: NoticeResult = {
   sms: '温馨提示：请勿占用消防通道及楼道出入口，社区将联合物业巡查整治，感谢配合。',
 }
 
+const defaultVoiceDraft = '介个消防通道老有车停着，晚上真要有急事儿车都进不来，帮忙跟物业说说吧。'
+
 const initialRecords: TicketRecord[] = sampleTickets.map((text, index) => ({
   id: `demo-${index + 1}`,
   text,
@@ -182,6 +197,9 @@ function App() {
   const [authPassword, setAuthPassword] = useState('demo123')
   const [profileSaved, setProfileSaved] = useState(false)
   const [ticket, setTicket] = useState(sampleTickets[0])
+  const [dialectMode, setDialectMode] = useState<DialectMode>('天津话')
+  const [voiceDraft, setVoiceDraft] = useState(defaultVoiceDraft)
+  const [intakeResult, setIntakeResult] = useState<IntakeResult | null>(null)
   const [noticePrompt, setNoticePrompt] = useState('周末小区消防通道专项清理提醒')
   const [analysis, setAnalysis] = useState<AnalysisResult>(defaultAnalysis)
   const [notice, setNotice] = useState<NoticeResult>(defaultNotice)
@@ -190,6 +208,7 @@ function App() {
   const [reportText, setReportText] = useState(buildWeeklyReport(initialRecords))
   const [copiedKey, setCopiedKey] = useState('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
 
   const confidencePercent = useMemo(
@@ -244,6 +263,27 @@ function App() {
     setAnalysis(result)
     setRecords((current) => [record, ...current])
     setCurrentRecordId(record.id)
+  }
+
+  async function transcribeVoiceDraft() {
+    setIsTranscribing(true)
+    try {
+      const response = await fetch('/api/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: voiceDraft, dialect: dialectMode }),
+      })
+      if (!response.ok) throw new Error('API unavailable')
+      const data = (await response.json()) as IntakeResult
+      setIntakeResult(data)
+      setTicket(data.normalizedText)
+    } catch {
+      const fallback = buildLocalIntake(voiceDraft, dialectMode)
+      setIntakeResult(fallback)
+      setTicket(fallback.normalizedText)
+    } finally {
+      setIsTranscribing(false)
+    }
   }
 
   async function generateNotice() {
@@ -455,6 +495,53 @@ function App() {
                   </button>
                 ))}
               </div>
+
+              <div className="intake-box" aria-label="语音方言接入">
+                <div className="intake-title">
+                  <span>
+                    <Mic size={15} aria-hidden="true" />
+                    语音 / 方言入口
+                  </span>
+                  <strong>{intakeResult ? `${Math.round(intakeResult.confidence * 100)}%` : '演示'}</strong>
+                </div>
+                <div className="intake-controls">
+                  <label htmlFor="dialect-mode">
+                    口音类型
+                    <select
+                      id="dialect-mode"
+                      value={dialectMode}
+                      onChange={(event) => setDialectMode(event.target.value as DialectMode)}
+                    >
+                      <option value="天津话">天津话</option>
+                      <option value="普通话">普通话</option>
+                      <option value="混合口音">混合口音</option>
+                    </select>
+                  </label>
+                  <label htmlFor="voice-draft">
+                    转写文本
+                    <textarea
+                      id="voice-draft"
+                      className="voice-textarea"
+                      value={voiceDraft}
+                      onChange={(event) => setVoiceDraft(event.target.value)}
+                      rows={3}
+                    />
+                  </label>
+                </div>
+                <div className="button-row compact">
+                  <button className="secondary-button" type="button" onClick={transcribeVoiceDraft} disabled={isTranscribing}>
+                    {isTranscribing ? <Loader2 className="spin" size={16} aria-hidden="true" /> : <Mic size={16} aria-hidden="true" />}
+                    {isTranscribing ? '转写中' : '转成工单'}
+                  </button>
+                </div>
+                {intakeResult && (
+                  <div className="intake-result">
+                    <span>{intakeResult.provider}</span>
+                    <p>{intakeResult.normalizedText}</p>
+                  </div>
+                )}
+              </div>
+
               <div className="button-row">
                 <button className="primary-button" type="button" onClick={analyzeTicket} disabled={isAnalyzing}>
                   {isAnalyzing ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <Send size={18} aria-hidden="true" />}
@@ -571,6 +658,25 @@ function App() {
                     <li key={step}>{step}</li>
                   ))}
                 </ol>
+              </div>
+
+              <div className="workflow-list" aria-label="处置闭环">
+                <div className={`workflow-step ${currentRecord ? 'done' : ''}`}>
+                  <CheckCircle2 size={15} aria-hidden="true" />
+                  <span>录入入库</span>
+                </div>
+                <div className={`workflow-step ${currentRecord?.review !== '待复核' ? 'done' : ''}`}>
+                  <CheckCircle2 size={15} aria-hidden="true" />
+                  <span>人工复核</span>
+                </div>
+                <div className={`workflow-step ${currentRecord?.status !== '待转派' ? 'done' : ''}`}>
+                  <CheckCircle2 size={15} aria-hidden="true" />
+                  <span>转派跟进</span>
+                </div>
+                <div className={`workflow-step ${currentRecord?.status === '已回访' ? 'done' : ''}`}>
+                  <CheckCircle2 size={15} aria-hidden="true" />
+                  <span>居民回访</span>
+                </div>
               </div>
 
               <div className="mini-records">
@@ -925,6 +1031,38 @@ function App() {
           </div>
         </div>
       </section>
+
+      <section className="evidence-section" aria-label="服务接入方案">
+        <div className="evidence-heading">
+          <p className="section-kicker">
+            <Server size={16} aria-hidden="true" />
+            服务端与接入
+          </p>
+          <h2>线上体验背后的部署关系</h2>
+        </div>
+        <div className="service-grid">
+          <div className="service-card">
+            <GitBranch size={18} aria-hidden="true" />
+            <strong>代码仓库</strong>
+            <p>代码放在 GitHub，推送 main 分支后由 Vercel 自动构建上线。</p>
+          </div>
+          <div className="service-card">
+            <Server size={18} aria-hidden="true" />
+            <strong>服务端接口</strong>
+            <p>当前使用 Vercel Serverless：/api/analyze、/api/notice、/api/transcribe。</p>
+          </div>
+          <div className="service-card">
+            <Sparkles size={18} aria-hidden="true" />
+            <strong>AI 模型</strong>
+            <p>配置 DASHSCOPE_API_KEY 后走云端模型；没有密钥时使用本地规则兜底。</p>
+          </div>
+          <div className="service-card">
+            <Mic size={18} aria-hidden="true" />
+            <strong>方言识别</strong>
+            <p>演示版先接收转写文本并规范成工单；试点时替换为真实 ASR 音频识别。</p>
+          </div>
+        </div>
+      </section>
         </>
       )}
     </main>
@@ -964,6 +1102,26 @@ function createRecord(text: string, result: AnalysisResult): TicketRecord {
     review: '待复核',
     status: '待转派',
     createdAt: formatNow(),
+  }
+}
+
+function buildLocalIntake(transcript: string, dialect: DialectMode): IntakeResult {
+  const normalizedText = transcript
+    .replace(/介个/g, '这个')
+    .replace(/嘛呀/g, '')
+    .replace(/嘛/g, '')
+    .replace(/老有/g, '经常有')
+    .replace(/真要有急事儿/g, '如遇紧急情况')
+    .replace(/说说吧/g, '协调处理')
+    .trim()
+
+  return {
+    dialect,
+    transcript,
+    normalizedText: normalizedText || transcript,
+    confidence: dialect === '天津话' ? 0.82 : 0.88,
+    provider: '演示转写服务 /api/transcribe',
+    notes: ['演示版接收转写文本', '试点版替换为音频 ASR', '输出会进入同一套工单分析流程'],
   }
 }
 

@@ -351,7 +351,8 @@
 .result-grid span,
 .summary-box span,
 .steps span,
-.notice-block span {
+.notice-block span,
+.intake-result span {
   color: var(--ink-500);
   font-size: 12px;
   font-weight: 750;
@@ -544,6 +545,67 @@ select:focus {
   background: rgba(15, 118, 110, 0.07);
 }
 
+.intake-box {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fbfcfc;
+}
+
+.intake-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.intake-title span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink-800);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.intake-title strong {
+  color: var(--primary-dark);
+  font-size: 12px;
+}
+
+.intake-controls {
+  display: grid;
+  gap: 9px;
+}
+
+.intake-controls label {
+  margin: 0;
+}
+
+.intake-controls select,
+.intake-controls textarea {
+  margin-top: 6px;
+}
+
+.voice-textarea {
+  min-height: 86px;
+}
+
+.intake-result {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.intake-result p {
+  margin: 6px 0 0;
+  color: var(--ink-700);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .result-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -650,6 +712,33 @@ select:focus {
 .mini-records {
   display: grid;
   gap: 9px;
+}
+
+.workflow-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.workflow-step {
+  display: grid;
+  min-height: 58px;
+  place-items: center;
+  gap: 5px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 8px 6px;
+  color: var(--ink-500);
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: center;
+}
+
+.workflow-step.done {
+  color: var(--primary-dark);
+  border-color: rgba(15, 118, 110, 0.26);
+  background: rgba(15, 118, 110, 0.08);
 }
 
 .mini-record-list {
@@ -921,6 +1010,38 @@ select:focus {
   font-size: 17px;
 }
 
+.service-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.service-card {
+  min-height: 146px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #f8faf9;
+}
+
+.service-card svg {
+  color: var(--primary);
+}
+
+.service-card strong {
+  display: block;
+  margin-top: 10px;
+  color: var(--ink-900);
+  font-size: 16px;
+}
+
+.service-card p {
+  margin: 8px 0 0;
+  color: var(--ink-600);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .profile-summary {
   display: grid;
   gap: 10px;
@@ -1078,7 +1199,8 @@ select:focus {
   .dashboard,
   .account-grid,
   .metric-grid,
-  .proof-strip {
+  .proof-strip,
+  .service-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1101,7 +1223,8 @@ select:focus {
   }
 
   .result-grid,
-  .form-grid {
+  .form-grid,
+  .workflow-list {
     grid-template-columns: 1fr;
   }
 

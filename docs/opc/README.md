@@ -23,7 +23,7 @@ OPC 参赛叙事应围绕一条主线展开：
 | 变现 | 证明项目有商业闭环 | [商业模式](./BUSINESS_MODEL.md) |
 | 复盘 | 展示单人 + AI 的效率提升 | [OPC 工作流复盘](./OPC_WORKFLOW_REVIEW.md) |
 | 数据 | 支撑导入和评测 | [样例数据说明](./SAMPLE_DATA_GUIDE.md)、`../../data/sample_tickets.csv` |
-| 扩展 | 说明语音和天津方言路线 | [语音与天津方言识别方案](./VOICE_DIALECT_PLAN.md) |
+| 扩展 | 说明语音、天津方言和服务接入路线 | [语音与天津方言识别方案](./VOICE_DIALECT_PLAN.md)、[服务端与方言识别落地说明](./SERVICE_AND_DIALECT_RUNBOOK.md) |
 
 ## 2. 当前证据状态
 
