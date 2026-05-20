@@ -875,7 +875,10 @@ select:focus {
   background: rgba(15, 118, 110, 0.07);
 }
 
-.record-panel {
+.records-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.36fr);
+  gap: 14px;
   margin-top: 14px;
 }
 
@@ -894,6 +897,11 @@ select:focus {
   border: 1px solid var(--border);
   border-radius: 10px;
   background: #fbfcfc;
+}
+
+.record-row.active {
+  border-color: rgba(15, 118, 110, 0.36);
+  background: rgba(15, 118, 110, 0.06);
 }
 
 .record-head {
@@ -949,6 +957,48 @@ select:focus {
 .inline-actions button:hover {
   color: var(--primary-dark);
   border-color: var(--primary);
+}
+
+.record-detail-panel {
+  align-self: start;
+  display: grid;
+  gap: 12px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.detail-grid div,
+.record-original {
+  border: 1px solid rgba(220, 229, 226, 0.78);
+  border-radius: 10px;
+  padding: 12px;
+  background: #f8faf9;
+}
+
+.detail-grid span,
+.record-original span {
+  color: var(--ink-500);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.detail-grid strong {
+  display: block;
+  margin-top: 7px;
+  color: var(--ink-900);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.record-original p {
+  margin: 7px 0 0;
+  color: var(--ink-700);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .notice-button {
@@ -1286,6 +1336,7 @@ select:focus {
   .workspace-grid,
   .dashboard,
   .account-grid,
+  .records-layout,
   .metric-grid,
   .workbench-flow,
   .proof-strip,
@@ -1314,6 +1365,7 @@ select:focus {
 
   .result-grid,
   .form-grid,
+  .detail-grid,
   .workflow-list {
     grid-template-columns: 1fr;
   }

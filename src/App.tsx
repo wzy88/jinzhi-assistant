@@ -320,10 +320,14 @@ function App() {
     updateReview(currentRecordId, review)
   }
 
-  function loadRecord(record: TicketRecord) {
+  function selectRecord(record: TicketRecord) {
     setTicket(record.text)
     setAnalysis(record.analysis)
     setCurrentRecordId(record.id)
+  }
+
+  function loadRecord(record: TicketRecord) {
+    selectRecord(record)
     setActiveView('workspace')
   }
 
@@ -863,55 +867,119 @@ function App() {
       )}
 
       {activeView === 'records' && (
-      <section className="panel record-panel" id="records">
-        <div className="panel-heading">
-          <div>
-            <p className="section-kicker">
-              <ListChecks size={16} aria-hidden="true" />
-              处理记录
-            </p>
-            <h2>试点工单沉淀</h2>
-          </div>
-          <span className="status-pill">{records.length} 条记录</span>
-        </div>
-        <div className="record-table" role="table" aria-label="工单处理记录">
-          <div className="record-row record-head" role="row">
-            <span role="columnheader">时间</span>
-            <span role="columnheader">摘要</span>
-            <span role="columnheader">类别</span>
-            <span role="columnheader">状态</span>
-            <span role="columnheader">复核</span>
-            <span role="columnheader">操作</span>
-          </div>
-          {records.slice(0, 8).map((record) => (
-            <div className="record-row" role="row" key={record.id}>
-              <span role="cell">{record.createdAt}</span>
-              <button className="text-button" type="button" onClick={() => loadRecord(record)} role="cell">
-                {record.analysis.summary}
-              </button>
-              <span role="cell">{record.analysis.category}</span>
-              <span role="cell">
-                <select value={record.status} onChange={(event) => updateStatus(record.id, event.target.value as TicketStatus)}>
-                  <option value="待转派">待转派</option>
-                  <option value="已转派">已转派</option>
-                  <option value="已回访">已回访</option>
-                </select>
-              </span>
-              <span className={`review-badge review-${record.review}`} role="cell">
-                {record.review}
-              </span>
-              <span className="inline-actions" role="cell">
-                <button type="button" aria-label="标记正确" onClick={() => updateReview(record.id, '正确')}>
-                  <Check size={15} aria-hidden="true" />
-                </button>
-                <button type="button" aria-label="标记需调整" onClick={() => updateReview(record.id, '需调整')}>
-                  <XCircle size={15} aria-hidden="true" />
-                </button>
+        <section className="records-layout">
+          <section className="panel record-panel" id="records">
+            <div className="panel-heading">
+              <div>
+                <p className="section-kicker">
+                  <ListChecks size={16} aria-hidden="true" />
+                  处理记录
+                </p>
+                <h2>试点工单沉淀</h2>
+              </div>
+              <span className="status-pill">{records.length} 条记录</span>
+            </div>
+            <div className="record-table" role="table" aria-label="工单处理记录">
+              <div className="record-row record-head" role="row">
+                <span role="columnheader">时间</span>
+                <span role="columnheader">摘要</span>
+                <span role="columnheader">类别</span>
+                <span role="columnheader">状态</span>
+                <span role="columnheader">复核</span>
+                <span role="columnheader">操作</span>
+              </div>
+              {records.slice(0, 8).map((record) => (
+                <div className={`record-row ${record.id === currentRecordId ? 'active' : ''}`} role="row" key={record.id}>
+                  <span role="cell">{record.createdAt}</span>
+                  <button className="text-button" type="button" onClick={() => selectRecord(record)} role="cell">
+                    {record.analysis.summary}
+                  </button>
+                  <span role="cell">{record.analysis.category}</span>
+                  <span role="cell">
+                    <select value={record.status} onChange={(event) => updateStatus(record.id, event.target.value as TicketStatus)}>
+                      <option value="待转派">待转派</option>
+                      <option value="已转派">已转派</option>
+                      <option value="已回访">已回访</option>
+                    </select>
+                  </span>
+                  <span className={`review-badge review-${record.review}`} role="cell">
+                    {record.review}
+                  </span>
+                  <span className="inline-actions" role="cell">
+                    <button type="button" aria-label="查看详情" onClick={() => selectRecord(record)}>
+                      <FileText size={15} aria-hidden="true" />
+                    </button>
+                    <button type="button" aria-label="继续处理" onClick={() => loadRecord(record)}>
+                      <Send size={15} aria-hidden="true" />
+                    </button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <aside className="panel record-detail-panel" aria-label="选中工单详情">
+            <div className="panel-heading">
+              <div>
+                <p className="section-kicker">
+                  <FileText size={16} aria-hidden="true" />
+                  当前选中
+                </p>
+                <h2>{currentRecord?.analysis.category || '暂无工单'}</h2>
+              </div>
+              <span className={`review-badge review-${currentRecord?.review || '待复核'}`}>
+                {currentRecord?.review || '待复核'}
               </span>
             </div>
-          ))}
-        </div>
-      </section>
+            {currentRecord && (
+              <>
+                <div className="detail-grid">
+                  <div>
+                    <span>时间</span>
+                    <strong>{currentRecord.createdAt}</strong>
+                  </div>
+                  <div>
+                    <span>状态</span>
+                    <strong>{currentRecord.status}</strong>
+                  </div>
+                  <div>
+                    <span>优先级</span>
+                    <strong>{currentRecord.analysis.urgency}</strong>
+                  </div>
+                  <div>
+                    <span>部门</span>
+                    <strong>{currentRecord.analysis.department}</strong>
+                  </div>
+                </div>
+                <div className="summary-box">
+                  <span>摘要</span>
+                  <p>{currentRecord.analysis.summary}</p>
+                </div>
+                <div className="record-original">
+                  <span>原始诉求</span>
+                  <p>{currentRecord.text}</p>
+                </div>
+                <div className="button-row">
+                  <button className="primary-button" type="button" onClick={() => loadRecord(currentRecord)}>
+                    <Send size={16} aria-hidden="true" />
+                    继续处理
+                  </button>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() => {
+                      setNoticePrompt(`${currentRecord.analysis.category}处置进展提醒`)
+                      setActiveView('notice')
+                    }}
+                  >
+                    <Megaphone size={16} aria-hidden="true" />
+                    生成通知
+                  </button>
+                </div>
+              </>
+            )}
+          </aside>
+        </section>
       )}
 
       {activeView === 'notice' && (
