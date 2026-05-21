@@ -88,7 +88,8 @@ type UserSettings = {
   showDemoData: boolean
 }
 
-type ViewKey = 'workspace' | 'detail' | 'notice' | 'records' | 'dashboard' | 'account' | 'opc'
+type ViewKey = 'workspace' | 'records' | 'toolbox' | 'dashboard' | 'account' | 'opc'
+type ToolKey = 'notice' | 'poster' | 'checklist'
 
 const views: Array<{
   key: ViewKey
@@ -103,22 +104,16 @@ const views: Array<{
     description: '按紧急程度查看待办工单，快速进入详情处理，也可以在右侧直接生成居民通知。',
   },
   {
-    key: 'detail',
-    label: '工单详情',
-    title: '工单详情',
-    description: '核对居民原始诉求和 AI 分析结果，完成转交、处理中标记和人工修正。',
-  },
-  {
-    key: 'notice',
-    label: '通知生成器',
-    title: '通知生成器',
-    description: '输入通知主题，一键生成正式版、居民群版和短信版，编辑后复制使用。',
-  },
-  {
     key: 'records',
-    label: '处理记录',
-    title: '试点工单沉淀',
-    description: '查看最近处理记录，更新转派和回访状态，把演示过程变成可复核数据。',
+    label: '跟踪记录',
+    title: '跟踪记录',
+    description: '查看已处理、处理中和待回访工单，作为存档、跟踪和备忘清单。',
+  },
+  {
+    key: 'toolbox',
+    label: '工具箱',
+    title: '工具箱',
+    description: '承接非工单场景的辅助工具，例如通知生成、图片物料和巡查清单。',
   },
   {
     key: 'dashboard',
@@ -140,7 +135,7 @@ const views: Array<{
   },
 ]
 
-const navViews = views.filter((view) => ['workspace', 'notice', 'dashboard'].includes(view.key))
+const navViews = views.filter((view) => ['workspace', 'records', 'toolbox', 'dashboard'].includes(view.key))
 
 const sampleTickets = [
   '12号楼2单元门口消防通道长期被私家车占用，晚上救护车都进不来，物业说了几次也没人管。',
@@ -224,6 +219,11 @@ function App() {
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isNoticeDrawerOpen, setIsNoticeDrawerOpen] = useState(false)
+  const [isTicketDrawerOpen, setIsTicketDrawerOpen] = useState(false)
+  const [activeTool, setActiveTool] = useState<ToolKey | null>(null)
+  const [toolSubject, setToolSubject] = useState('周日停水')
+  const [posterAudience, setPosterAudience] = useState('全体居民')
+  const [toolOutput, setToolOutput] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
   const confidencePercent = useMemo(
@@ -295,7 +295,7 @@ function App() {
     setAnalysis(result)
     setRecords((current) => [record, ...current])
     setCurrentRecordId(record.id)
-    setActiveView('detail')
+    setIsTicketDrawerOpen(true)
   }
 
   async function transcribeVoiceDraft() {
@@ -373,11 +373,13 @@ function App() {
 
   function loadRecord(record: TicketRecord) {
     selectRecord(record)
-    setActiveView('detail')
+    setIsTicketDrawerOpen(true)
   }
 
   function returnToWorkspace(message?: string) {
     setActiveView('workspace')
+    setIsTicketDrawerOpen(false)
+    setIsNoticeDrawerOpen(false)
     if (message) {
       setSuccessMessage(message)
       window.setTimeout(() => setSuccessMessage(''), 2200)
@@ -388,6 +390,46 @@ function App() {
     if (!currentRecord) return
     updateStatus(currentRecord.id, status)
     returnToWorkspace(`工单 ${currentRecord.id.slice(0, 8)} 已更新为「${status}」，工作台已刷新。`)
+  }
+
+  function openTool(tool: ToolKey, subject = toolSubject) {
+    setToolSubject(subject)
+    setActiveTool(tool)
+  }
+
+  function generateToolOutput(tool: ToolKey) {
+    if (tool === 'notice') {
+      setNoticePrompt(toolSubject)
+      setNotice(buildLocalNotice(toolSubject, analysis))
+      setToolOutput(`已生成“${toolSubject}”通知草稿，可复制正式版、居民群版或短信版。`)
+      return
+    }
+
+    if (tool === 'poster') {
+      setToolOutput(
+        [
+          `社区提示海报：${toolSubject}`,
+          '',
+          `面向对象：${posterAudience}`,
+          '主视觉建议：社区公告栏背景 + 清晰图标 + 物业/社区联合署名。',
+          '主标题：请留意社区最新提醒',
+          `正文：关于“${toolSubject}”，请居民相互转告并配合现场安排。如有特殊情况，请及时联系网格员或物业服务中心。`,
+          '落款：社区居委会 / 物业服务中心',
+        ].join('\n'),
+      )
+      return
+    }
+
+    setToolOutput(
+      [
+        `${toolSubject}巡查清单`,
+        '1. 核实具体楼栋、点位、时间和责任单位。',
+        '2. 拍摄处理前照片，记录现场风险等级。',
+        '3. 通知物业或对应部门到场处理。',
+        '4. 处理后拍照留档，并在工单中更新状态。',
+        '5. 对居民进行回访，记录满意度和遗留问题。',
+      ].join('\n'),
+    )
   }
 
   async function copyText(key: string, text: string) {
@@ -621,39 +663,48 @@ function App() {
                     <Megaphone size={16} aria-hidden="true" />
                     快捷通知
                   </p>
-                  <h2>发居民群前先起草</h2>
+                  <h2>无工单也能发通知</h2>
                 </div>
               </div>
               <label htmlFor="quick-notice-input">通知主题</label>
               <input
                 id="quick-notice-input"
-                value={noticePrompt}
-                onChange={(event) => setNoticePrompt(event.target.value)}
+                value={toolSubject}
+                onChange={(event) => setToolSubject(event.target.value)}
               />
               <div className="button-row">
-                <button className="primary-button" type="button" onClick={generateNotice} disabled={isGenerating}>
-                  {isGenerating ? <Loader2 className="spin" size={16} aria-hidden="true" /> : <FileText size={16} aria-hidden="true" />}
-                  {isGenerating ? '生成中' : '生成通知'}
+                <button className="primary-button" type="button" onClick={() => openTool('notice', toolSubject)}>
+                  <FileText size={16} aria-hidden="true" />
+                  打开生成器
                 </button>
-                <button className="secondary-button" type="button" onClick={() => setActiveView('notice')}>
-                  独立页面
+                <button className="secondary-button" type="button" onClick={() => setActiveView('toolbox')}>
+                  更多工具
                 </button>
               </div>
               <div className="notice-preview">
-                <span>居民群版</span>
-                <p>{notice.friendly}</p>
-                <button className="secondary-button" type="button" onClick={() => copyText('workspace-friendly', notice.friendly)}>
-                  <Copy size={15} aria-hidden="true" />
-                  {copiedKey === 'workspace-friendly' ? '已复制' : '复制'}
-                </button>
+                <span>工具箱</span>
+                <p>通知、图片物料和巡查清单都放在这里；需要时打开，用完关闭，工作台不被打断。</p>
               </div>
             </aside>
           </section>
         </>
       )}
 
-      {activeView === 'detail' && (
-        <>
+      {isTicketDrawerOpen && currentRecord && (
+        <section className="ticket-drawer-backdrop" aria-label="工单处理抽屉">
+          <aside className="ticket-drawer">
+            <div className="ticket-drawer-heading">
+              <div>
+                <p className="section-kicker">
+                  <FileText size={16} aria-hidden="true" />
+                  工单处理
+                </p>
+                <h2>{analysis.category}</h2>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setIsTicketDrawerOpen(false)} aria-label="关闭工单处理">
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
           <section className="workbench-flow" aria-label="工单处理流程">
             <div className="flow-step active">
               <span>01</span>
@@ -998,7 +1049,8 @@ function App() {
               </article>
             ))}
           </section>
-        </>
+          </aside>
+        </section>
       )}
 
       {activeView === 'account' && (
@@ -1146,9 +1198,9 @@ function App() {
               <div>
                 <p className="section-kicker">
                   <ListChecks size={16} aria-hidden="true" />
-                  处理记录
+                  跟踪记录
                 </p>
-                <h2>试点工单沉淀</h2>
+                <h2>工单存档与备忘</h2>
               </div>
               <span className="status-pill">{records.length} 条记录</span>
             </div>
@@ -1264,60 +1316,122 @@ function App() {
         </section>
       )}
 
-      {activeView === 'notice' && (
-        <section className="notice-page">
-          <article className="panel notice-compose-panel">
+      {activeView === 'toolbox' && (
+        <section className="toolbox-page">
+          <article className="tool-card" onClick={() => openTool('notice')} role="button" tabIndex={0}>
+            <Megaphone size={20} aria-hidden="true" />
+            <strong>通知生成</strong>
+            <p>没有工单时，输入主题生成正式版、居民群版和短信版。</p>
+          </article>
+          <article className="tool-card" onClick={() => openTool('poster', '社区安全提醒')} role="button" tabIndex={0}>
+            <FileText size={20} aria-hidden="true" />
+            <strong>图片物料</strong>
+            <p>生成公告海报的标题、正文和设计提示，可复制给图片工具继续制作。</p>
+          </article>
+          <article className="tool-card" onClick={() => openTool('checklist', '消防通道巡查')} role="button" tabIndex={0}>
+            <ListChecks size={20} aria-hidden="true" />
+            <strong>巡查清单</strong>
+            <p>把专项任务拆成可执行检查项，方便线下巡查和后续留痕。</p>
+          </article>
+        </section>
+      )}
+
+      {activeTool && (
+        <section className="tool-drawer-backdrop" aria-label="工具抽屉">
+          <aside className="tool-drawer">
             <div className="panel-heading">
               <div>
                 <p className="section-kicker">
-                  <Megaphone size={16} aria-hidden="true" />
-                  通知生成器
+                  <Settings size={16} aria-hidden="true" />
+                  工具箱
                 </p>
-                <h2>一键生成三种表达</h2>
+                <h2>{activeTool === 'notice' ? '通知生成' : activeTool === 'poster' ? '图片物料' : '巡查清单'}</h2>
               </div>
-              <span className="status-pill">可编辑后复制</span>
-            </div>
-            <label htmlFor="notice-page-input">通知主题</label>
-            <p className="field-helper">例如“周日停水”“消防通道清理”“电梯检修”。系统会同时生成正式公告和居民群大白话版本。</p>
-            <input
-              id="notice-page-input"
-              value={noticePrompt}
-              onChange={(event) => setNoticePrompt(event.target.value)}
-            />
-            <div className="button-row">
-              <button className="primary-button" type="button" onClick={generateNotice} disabled={isGenerating}>
-                {isGenerating ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <FileText size={18} aria-hidden="true" />}
-                {isGenerating ? '生成中' : 'AI 生成通知'}
+              <button className="icon-button" type="button" onClick={() => setActiveTool(null)} aria-label="关闭工具">
+                <X size={18} aria-hidden="true" />
               </button>
-              <button className="secondary-button" type="button" onClick={() => setNoticePrompt('周日停水')}>
+            </div>
+            <label htmlFor="tool-subject-input">主题</label>
+            <p className="field-helper">工具箱用于非工单场景。生成结果可复制，也可下载成文本继续加工。</p>
+            <input
+              id="tool-subject-input"
+              value={toolSubject}
+              onChange={(event) => setToolSubject(event.target.value)}
+            />
+            {activeTool === 'poster' && (
+              <label htmlFor="poster-audience">
+                面向对象
+                <input
+                  id="poster-audience"
+                  value={posterAudience}
+                  onChange={(event) => setPosterAudience(event.target.value)}
+                />
+              </label>
+            )}
+            <div className="button-row">
+              <button className="primary-button" type="button" onClick={() => generateToolOutput(activeTool)}>
+                <Sparkles size={18} aria-hidden="true" />
+                生成内容
+              </button>
+              <button className="secondary-button" type="button" onClick={() => setToolSubject('周日停水')}>
                 使用停水示例
               </button>
             </div>
-          </article>
 
-          <section className="notice-output notice-page-output">
-            <NoticeBlock
-              title="正式版"
-              text={notice.formal}
-              copied={copiedKey === 'notice-formal'}
-              onChange={(value) => updateNoticeDraft('formal', value)}
-              onCopy={() => copyText('notice-formal', notice.formal)}
-            />
-            <NoticeBlock
-              title="居民群版"
-              text={notice.friendly}
-              copied={copiedKey === 'notice-friendly'}
-              onChange={(value) => updateNoticeDraft('friendly', value)}
-              onCopy={() => copyText('notice-friendly', notice.friendly)}
-            />
-            <NoticeBlock
-              title="短信版"
-              text={notice.sms}
-              copied={copiedKey === 'notice-sms'}
-              onChange={(value) => updateNoticeDraft('sms', value)}
-              onCopy={() => copyText('notice-sms', notice.sms)}
-            />
-          </section>
+            {activeTool === 'notice' ? (
+              <section className="notice-output notice-page-output">
+                <NoticeBlock
+                  title="正式版"
+                  text={notice.formal}
+                  copied={copiedKey === 'tool-formal'}
+                  onChange={(value) => updateNoticeDraft('formal', value)}
+                  onCopy={() => copyText('tool-formal', notice.formal)}
+                />
+                <NoticeBlock
+                  title="居民群版"
+                  text={notice.friendly}
+                  copied={copiedKey === 'tool-friendly'}
+                  onChange={(value) => updateNoticeDraft('friendly', value)}
+                  onCopy={() => copyText('tool-friendly', notice.friendly)}
+                />
+                <NoticeBlock
+                  title="短信版"
+                  text={notice.sms}
+                  copied={copiedKey === 'tool-sms'}
+                  onChange={(value) => updateNoticeDraft('sms', value)}
+                  onCopy={() => copyText('tool-sms', notice.sms)}
+                />
+              </section>
+            ) : (
+              <div className="tool-output">
+                {activeTool === 'poster' && (
+                  <div className="poster-preview" aria-label="图片物料预览">
+                    <span>社区提示</span>
+                    <strong>{toolSubject}</strong>
+                    <p>{posterAudience}请相互转告，配合社区和物业现场安排。</p>
+                  </div>
+                )}
+                <span>生成结果</span>
+                <textarea value={toolOutput} onChange={(event) => setToolOutput(event.target.value)} rows={12} aria-label="工具生成结果" />
+                <div className="button-row">
+                  <button className="secondary-button" type="button" onClick={() => copyText('tool-output', toolOutput)}>
+                    <Copy size={16} aria-hidden="true" />
+                    {copiedKey === 'tool-output' ? '已复制' : '复制'}
+                  </button>
+                  <button className="secondary-button" type="button" onClick={() => downloadText(`${toolSubject}.txt`, toolOutput)}>
+                    <FileText size={16} aria-hidden="true" />
+                    下载
+                  </button>
+                  {activeTool === 'poster' && (
+                    <button className="secondary-button" type="button" onClick={() => downloadPosterSvg(toolSubject, posterAudience)}>
+                      <FileText size={16} aria-hidden="true" />
+                      下载SVG
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </aside>
         </section>
       )}
 
@@ -1750,6 +1864,49 @@ function persistJson<T>(key: string, value: T) {
   } catch {
     // 演示环境下 localStorage 不可用时直接忽略，不阻断主流程。
   }
+}
+
+function downloadText(filename: string, text: string) {
+  const blob = new Blob([text || ''], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+function downloadPosterSvg(title: string, audience: string) {
+  const safeTitle = escapeXml(title || '社区通知')
+  const safeAudience = escapeXml(audience || '全体居民')
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1440" viewBox="0 0 1080 1440">
+  <rect width="1080" height="1440" fill="#f4f7f6"/>
+  <rect x="90" y="110" width="900" height="1220" rx="36" fill="#ffffff" stroke="#d8e2df" stroke-width="4"/>
+  <rect x="130" y="150" width="820" height="190" rx="28" fill="#0f766e"/>
+  <text x="540" y="260" text-anchor="middle" font-size="68" font-weight="800" fill="#ffffff">社区提示</text>
+  <text x="540" y="520" text-anchor="middle" font-size="72" font-weight="800" fill="#14201f">${safeTitle}</text>
+  <text x="540" y="680" text-anchor="middle" font-size="42" fill="#3e504d">${safeAudience}请相互转告</text>
+  <text x="540" y="760" text-anchor="middle" font-size="42" fill="#3e504d">并配合社区和物业现场安排</text>
+  <rect x="210" y="910" width="660" height="120" rx="24" fill="#e7eeec"/>
+  <text x="540" y="985" text-anchor="middle" font-size="38" font-weight="700" fill="#115e59">如有疑问请联系网格员</text>
+  <text x="540" y="1210" text-anchor="middle" font-size="34" fill="#60706d">社区居委会 / 物业服务中心</text>
+</svg>`
+  const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${title || '社区通知'}.svg`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+function escapeXml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
 }
 
 export default App
