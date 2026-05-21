@@ -27,6 +27,7 @@ import {
   Sparkles,
   Upload,
   UserRound,
+  X,
 } from 'lucide-react'
 import './App.css'
 
@@ -87,7 +88,7 @@ type UserSettings = {
   showDemoData: boolean
 }
 
-type ViewKey = 'workspace' | 'records' | 'notice' | 'dashboard' | 'account' | 'opc'
+type ViewKey = 'workspace' | 'records' | 'dashboard' | 'account' | 'opc'
 
 const views: Array<{
   key: ViewKey
@@ -108,12 +109,6 @@ const views: Array<{
     description: '查看最近处理记录，更新转派和回访状态，把演示过程变成可复核数据。',
   },
   {
-    key: 'notice',
-    label: '通知生成',
-    title: '多渠道居民通知',
-    description: '根据当前工单类别生成正式版、居民群版和短信版，减少重复写作。',
-  },
-  {
     key: 'dashboard',
     label: '数据看板',
     title: '高频问题与周报',
@@ -132,6 +127,8 @@ const views: Array<{
     description: '集中展示比赛证据链、数据边界和下一步真实试点材料。',
   },
 ]
+
+const navViews = views.filter((view) => ['workspace', 'records', 'dashboard', 'opc'].includes(view.key))
 
 const sampleTickets = [
   '12号楼2单元门口消防通道长期被私家车占用，晚上救护车都进不来，物业说了几次也没人管。',
@@ -214,6 +211,7 @@ function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isNoticeDrawerOpen, setIsNoticeDrawerOpen] = useState(false)
 
   const confidencePercent = useMemo(
     () => Math.round(analysis.confidence * 100),
@@ -413,7 +411,7 @@ function App() {
           </span>
         </button>
         <nav className="nav-links" aria-label="功能视图">
-          {views.map((view) => (
+          {navViews.map((view) => (
             <button
               className={`tab-button ${activeView === view.key ? 'active' : ''}`}
               type="button"
@@ -706,7 +704,7 @@ function App() {
                   type="button"
                   onClick={() => {
                     setNoticePrompt(`${analysis.category}处置进展提醒`)
-                    setActiveView('notice')
+                    setIsNoticeDrawerOpen(true)
                   }}
                 >
                   <Megaphone size={16} aria-hidden="true" />
@@ -1023,7 +1021,7 @@ function App() {
                     type="button"
                     onClick={() => {
                       setNoticePrompt(`${currentRecord.analysis.category}处置进展提醒`)
-                      setActiveView('notice')
+                      setIsNoticeDrawerOpen(true)
                     }}
                   >
                     <Megaphone size={16} aria-hidden="true" />
@@ -1034,58 +1032,6 @@ function App() {
             )}
           </aside>
         </section>
-      )}
-
-      {activeView === 'notice' && (
-      <section className="notice-workspace">
-        <article className="panel" id="notice">
-          <div className="panel-heading">
-            <div>
-              <p className="section-kicker">
-                <Megaphone size={16} aria-hidden="true" />
-                通知草稿
-              </p>
-              <h2>AI 生成后人工编辑</h2>
-            </div>
-          </div>
-
-          <label htmlFor="notice-input">通知主题</label>
-          <p className="field-helper">AI 每次生成会覆盖右侧草稿。发出前可逐字修改，再复制到对应渠道。</p>
-          <input
-            id="notice-input"
-            value={noticePrompt}
-            onChange={(event) => setNoticePrompt(event.target.value)}
-          />
-          <button className="primary-button notice-button" type="button" onClick={generateNotice} disabled={isGenerating}>
-            {isGenerating ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <FileText size={18} aria-hidden="true" />}
-            {isGenerating ? '生成中' : 'AI 生成 / 重新生成'}
-          </button>
-        </article>
-
-        <article className="panel notice-output">
-          <NoticeBlock
-            title="正式版"
-            text={notice.formal}
-            copied={copiedKey === 'formal'}
-            onChange={(value) => updateNoticeDraft('formal', value)}
-            onCopy={() => copyText('formal', notice.formal)}
-          />
-          <NoticeBlock
-            title="居民群版"
-            text={notice.friendly}
-            copied={copiedKey === 'friendly'}
-            onChange={(value) => updateNoticeDraft('friendly', value)}
-            onCopy={() => copyText('friendly', notice.friendly)}
-          />
-          <NoticeBlock
-            title="短信版"
-            text={notice.sms}
-            copied={copiedKey === 'sms'}
-            onChange={(value) => updateNoticeDraft('sms', value)}
-            onCopy={() => copyText('sms', notice.sms)}
-          />
-        </article>
-      </section>
       )}
 
       {activeView === 'dashboard' && (
@@ -1227,6 +1173,61 @@ function App() {
         </div>
       </section>
         </>
+      )}
+
+      {isNoticeDrawerOpen && (
+        <section className="notice-drawer-backdrop" aria-label="通知草稿抽屉">
+          <aside className="notice-drawer">
+            <div className="notice-drawer-heading">
+              <div>
+                <p className="section-kicker">
+                  <Megaphone size={16} aria-hidden="true" />
+                  可选动作 · 通知居民
+                </p>
+                <h2>AI 起草，人工编辑后复制</h2>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setIsNoticeDrawerOpen(false)} aria-label="关闭通知抽屉">
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+
+            <label htmlFor="notice-input">通知主题</label>
+            <p className="field-helper">只有需要通知居民时才使用。AI 每次生成会覆盖下方草稿，发出前可手动修改。</p>
+            <input
+              id="notice-input"
+              value={noticePrompt}
+              onChange={(event) => setNoticePrompt(event.target.value)}
+            />
+            <button className="primary-button notice-button" type="button" onClick={generateNotice} disabled={isGenerating}>
+              {isGenerating ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <FileText size={18} aria-hidden="true" />}
+              {isGenerating ? '生成中' : 'AI 生成 / 重新生成'}
+            </button>
+
+            <div className="notice-output">
+              <NoticeBlock
+                title="正式版"
+                text={notice.formal}
+                copied={copiedKey === 'formal'}
+                onChange={(value) => updateNoticeDraft('formal', value)}
+                onCopy={() => copyText('formal', notice.formal)}
+              />
+              <NoticeBlock
+                title="居民群版"
+                text={notice.friendly}
+                copied={copiedKey === 'friendly'}
+                onChange={(value) => updateNoticeDraft('friendly', value)}
+                onCopy={() => copyText('friendly', notice.friendly)}
+              />
+              <NoticeBlock
+                title="短信版"
+                text={notice.sms}
+                copied={copiedKey === 'sms'}
+                onChange={(value) => updateNoticeDraft('sms', value)}
+                onCopy={() => copyText('sms', notice.sms)}
+              />
+            </div>
+          </aside>
+        </section>
       )}
     </main>
   )
