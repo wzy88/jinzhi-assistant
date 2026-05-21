@@ -471,7 +471,7 @@
 }
 
 .workspace-grid {
-  grid-template-columns: minmax(360px, 1.2fr) minmax(290px, 0.88fr) minmax(280px, 0.84fr);
+  grid-template-columns: minmax(520px, 1fr) minmax(340px, 0.48fr);
   align-items: start;
   gap: 16px;
 }
@@ -510,7 +510,6 @@
   background: var(--primary);
 }
 
-.result-panel,
 .action-panel {
   box-shadow: 0 8px 22px rgba(20, 32, 30, 0.06);
 }
@@ -747,6 +746,29 @@ select:focus {
   color: var(--ink-700);
   font-size: 13px;
   line-height: 1.6;
+}
+
+.analysis-card {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid rgba(220, 229, 226, 0.9);
+  border-radius: 12px;
+  background: #f8faf9;
+}
+
+.analysis-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.analysis-title h3 {
+  margin: 0;
+  color: var(--ink-900);
+  font-size: 18px;
+  line-height: 1.25;
 }
 
 .result-grid {

@@ -572,43 +572,43 @@ function App() {
                   </div>
                 )}
               </details>
-            </article>
 
-            <article className="panel result-panel" aria-live="polite">
-              <div className="panel-heading">
-                <div>
-                  <p className="section-kicker">
-                    <CheckCircle2 size={16} aria-hidden="true" />
-                    第 2 步 · AI 判断
-                  </p>
-                  <h2>{analysis.category}</h2>
+              <section className="analysis-card" aria-live="polite">
+                <div className="analysis-title">
+                  <div>
+                    <p className="section-kicker">
+                      <CheckCircle2 size={16} aria-hidden="true" />
+                      第 2 步 · AI 判断
+                    </p>
+                    <h3>{analysis.category}</h3>
+                  </div>
+                  <span className={`urgency urgency-${analysis.urgency}`}>{analysis.urgency}优先级</span>
                 </div>
-                <span className={`urgency urgency-${analysis.urgency}`}>{analysis.urgency}优先级</span>
-              </div>
 
-              <div className="result-grid">
-                <div>
-                  <span>诉求类别</span>
-                  <strong>{analysis.category}</strong>
+                <div className="result-grid">
+                  <div>
+                    <span>诉求类别</span>
+                    <strong>{analysis.category}</strong>
+                  </div>
+                  <div>
+                    <span>情绪标签</span>
+                    <strong>{analysis.emotion}</strong>
+                  </div>
+                  <div>
+                    <span>建议部门</span>
+                    <strong>{analysis.department}</strong>
+                  </div>
+                  <div>
+                    <span>置信度</span>
+                    <strong>{confidencePercent}%</strong>
+                  </div>
                 </div>
-                <div>
-                  <span>情绪标签</span>
-                  <strong>{analysis.emotion}</strong>
-                </div>
-                <div>
-                  <span>建议部门</span>
-                  <strong>{analysis.department}</strong>
-                </div>
-                <div>
-                  <span>置信度</span>
-                  <strong>{confidencePercent}%</strong>
-                </div>
-              </div>
 
-              <div className="summary-box">
-                <span>摘要</span>
-                <p>{analysis.summary}</p>
-              </div>
+                <div className="summary-box">
+                  <span>摘要</span>
+                  <p>{analysis.summary}</p>
+                </div>
+              </section>
             </article>
 
             <aside className="panel action-panel" aria-label="工单处置台">
@@ -618,7 +618,7 @@ function App() {
                     <Clock3 size={16} aria-hidden="true" />
                     第 3 步 · 复核流转
                   </p>
-                  <h2>复核与流转</h2>
+                  <h2>处理单</h2>
                 </div>
               </div>
 
@@ -692,6 +692,15 @@ function App() {
               </select>
 
               <div className="action-stack" aria-label="快捷处置">
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => currentRecord && updateStatus(currentRecord.id, '已转派')}
+                  disabled={!currentRecord}
+                >
+                  <Send size={16} aria-hidden="true" />
+                  确认转派
+                </button>
                 <button
                   className="primary-button"
                   type="button"
