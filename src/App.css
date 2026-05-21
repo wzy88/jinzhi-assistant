@@ -8,6 +8,48 @@
   align-items: start;
 }
 
+.login-shell {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.login-card {
+  width: min(520px, 100%);
+  display: grid;
+  gap: 24px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 18px 42px rgba(20, 32, 30, 0.1);
+}
+
+.login-brand {
+  align-self: start;
+}
+
+.login-card h1 {
+  margin: 0;
+  color: var(--ink-900);
+  font-size: 28px;
+  line-height: 1.18;
+  letter-spacing: 0;
+}
+
+.code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.login-submit {
+  width: 100%;
+  margin-top: 4px;
+}
+
 .app-shell > * {
   min-width: 0;
 }
@@ -203,6 +245,21 @@
   min-height: 76px;
   padding: 4px 2px 12px;
   border-bottom: 1px solid var(--border);
+}
+
+.success-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  margin-top: 14px;
+  padding: 10px 13px;
+  border: 1px solid rgba(22, 101, 52, 0.2);
+  border-radius: 10px;
+  color: #166534;
+  background: #dcfce7;
+  font-size: 14px;
+  font-weight: 750;
 }
 
 .workspace-brief h1 {
@@ -470,6 +527,14 @@
   margin-top: 14px;
 }
 
+.dashboard-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.38fr);
+  gap: 14px;
+  margin-top: 14px;
+  align-items: start;
+}
+
 .workspace-grid {
   grid-template-columns: minmax(520px, 1fr) minmax(340px, 0.48fr);
   align-items: start;
@@ -485,6 +550,105 @@
 
 .panel {
   padding: 20px;
+}
+
+.ticket-list {
+  display: grid;
+  gap: 10px;
+}
+
+.ticket-card {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 9px 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 92px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  color: var(--ink-700);
+  background: #fbfcfc;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ticket-card:hover,
+.ticket-card:focus-visible {
+  border-color: rgba(15, 118, 110, 0.38);
+  background: rgba(15, 118, 110, 0.06);
+}
+
+.ticket-card strong,
+.ticket-card small {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.ticket-card strong {
+  color: var(--ink-900);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.ticket-card small {
+  color: var(--ink-500);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.status-dot {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.status-待处理 {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.status-处理中,
+.status-已转派 {
+  color: #115e59;
+  background: rgba(15, 118, 110, 0.1);
+}
+
+.status-已回访 {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.quick-notice-panel {
+  align-self: stretch;
+}
+
+.notice-preview {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.notice-preview span,
+.correction-box > span {
+  color: var(--ink-500);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.notice-preview p {
+  margin: 0;
+  color: var(--ink-700);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .input-panel {
@@ -879,6 +1043,25 @@ select:focus {
   margin-top: 6px;
 }
 
+.correction-box {
+  display: grid;
+  gap: 9px;
+  padding: 13px;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 10px;
+  background: rgba(15, 118, 110, 0.06);
+}
+
+.correction-box label {
+  margin: 0;
+}
+
+.correction-box input,
+.correction-box select {
+  margin-top: 6px;
+  background: #ffffff;
+}
+
 .mini-records {
   display: grid;
   gap: 9px;
@@ -1144,6 +1327,23 @@ select:focus {
   display: grid;
   gap: 12px;
   margin-top: 14px;
+}
+
+.notice-page {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.42fr) minmax(0, 1fr);
+  gap: 14px;
+  margin-top: 14px;
+  align-items: start;
+}
+
+.notice-compose-panel {
+  position: sticky;
+  top: 18px;
+}
+
+.notice-page-output {
+  margin-top: 0;
 }
 
 .notice-edit {
@@ -1481,8 +1681,10 @@ select:focus {
   .workspace-brief,
   .workspace-grid,
   .dashboard,
+  .dashboard-workspace,
   .account-grid,
   .records-layout,
+  .notice-page,
   .metric-grid,
   .workbench-flow,
   .proof-strip,
@@ -1524,6 +1726,10 @@ select:focus {
   .record-row {
     min-width: 860px;
   }
+
+  .notice-compose-panel {
+    position: static;
+  }
 }
 
 @media (max-width: 560px) {
@@ -1553,6 +1759,7 @@ select:focus {
   }
 
   .brief-actions,
+  .code-row,
   .primary-link,
   .secondary-link,
   .primary-button,

@@ -57,7 +57,7 @@ type IntakeResult = {
 }
 
 type ReviewState = '待复核' | '正确' | '需调整'
-type TicketStatus = '待转派' | '已转派' | '已回访'
+type TicketStatus = '待处理' | '处理中' | '已转派' | '已回访'
 type DialectMode = '普通话' | '天津话' | '混合口音'
 
 type TicketRecord = {
@@ -88,7 +88,7 @@ type UserSettings = {
   showDemoData: boolean
 }
 
-type ViewKey = 'workspace' | 'records' | 'dashboard' | 'account' | 'opc'
+type ViewKey = 'workspace' | 'detail' | 'notice' | 'records' | 'dashboard' | 'account' | 'opc'
 
 const views: Array<{
   key: ViewKey
@@ -99,8 +99,20 @@ const views: Array<{
   {
     key: 'workspace',
     label: '工作台',
-    title: '居民诉求预处理',
-    description: '集中完成诉求录入、AI 分析、人工复核和入库，适合网格员的日常主流程。',
+    title: '工单工作台',
+    description: '按紧急程度查看待办工单，快速进入详情处理，也可以在右侧直接生成居民通知。',
+  },
+  {
+    key: 'detail',
+    label: '工单详情',
+    title: '工单详情',
+    description: '核对居民原始诉求和 AI 分析结果，完成转交、处理中标记和人工修正。',
+  },
+  {
+    key: 'notice',
+    label: '通知生成器',
+    title: '通知生成器',
+    description: '输入通知主题，一键生成正式版、居民群版和短信版，编辑后复制使用。',
   },
   {
     key: 'records',
@@ -111,8 +123,8 @@ const views: Array<{
   {
     key: 'dashboard',
     label: '数据看板',
-    title: '高频问题与周报',
-    description: '给社区负责人查看高频问题、复核准确率和周报草稿。',
+    title: '数据看板',
+    description: '查看工单统计、高频问题、复核准确率和社区工单周报草稿。',
   },
   {
     key: 'account',
@@ -128,7 +140,7 @@ const views: Array<{
   },
 ]
 
-const navViews = views.filter((view) => ['workspace', 'records', 'dashboard', 'opc'].includes(view.key))
+const navViews = views.filter((view) => ['workspace', 'notice', 'dashboard'].includes(view.key))
 
 const sampleTickets = [
   '12号楼2单元门口消防通道长期被私家车占用，晚上救护车都进不来，物业说了几次也没人管。',
@@ -165,7 +177,7 @@ const initialRecords: TicketRecord[] = sampleTickets.map((text, index) => ({
   text,
   analysis: buildLocalAnalysis(text),
   review: index === 0 ? '正确' : '待复核',
-  status: index === 0 ? '已转派' : '待转派',
+  status: '待处理',
   assignee: index === 0 ? '物业服务中心' : '待分配',
   follower: index === 0 ? '王明' : '待指定',
   dueAt: index === 0 ? '今日 18:00 前回访' : '24 小时内跟进',
@@ -191,11 +203,11 @@ const defaultSettings: UserSettings = {
 function App() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [activeView, setActiveView] = useState<ViewKey>('workspace')
-  const [isSignedIn, setIsSignedIn] = useState(() => readJson('jinzhi-auth', true))
+  const [isSignedIn, setIsSignedIn] = useState(() => readJson('jinzhi-auth', false))
   const [profile, setProfile] = useState<UserProfile>(() => readJson('jinzhi-profile', defaultProfile))
   const [settings, setSettings] = useState<UserSettings>(() => readJson('jinzhi-settings', defaultSettings))
   const [authPhone, setAuthPhone] = useState(profile.phone)
-  const [authPassword, setAuthPassword] = useState('demo123')
+  const [authCode, setAuthCode] = useState('246810')
   const [profileSaved, setProfileSaved] = useState(false)
   const [ticket, setTicket] = useState(sampleTickets[0])
   const [dialectMode, setDialectMode] = useState<DialectMode>('天津话')
@@ -212,6 +224,7 @@ function App() {
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isNoticeDrawerOpen, setIsNoticeDrawerOpen] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
 
   const confidencePercent = useMemo(
     () => Math.round(analysis.confidence * 100),
@@ -223,12 +236,13 @@ function App() {
     const reviewed = records.filter((record) => record.review !== '待复核').length
     const correct = records.filter((record) => record.review === '正确').length
     const urgent = records.filter((record) => record.analysis.urgency === '高').length
+    const pending = records.filter((record) => record.status !== '已回访').length
     const accuracy = reviewed > 0 ? Math.round((correct / reviewed) * 100) : 0
     const topCategory = getTopCategories(records)[0]?.name || '暂无'
 
     return {
       metrics: [
-        { label: '本次工单', value: String(total), hint: '含导入与演示样例' },
+        { label: '待处理工单', value: String(pending), hint: `共 ${total} 条记录` },
         { label: '高优先级', value: String(urgent), hint: '需优先核实处理' },
         { label: '复核准确率', value: reviewed ? `${accuracy}%` : '待复核', hint: '基于人工复核记录' },
         { label: '高频问题', value: topCategory, hint: '本次会话 TOP1' },
@@ -241,6 +255,22 @@ function App() {
 
   const currentView = views.find((view) => view.key === activeView) || views[0]
   const currentRecord = records.find((record) => record.id === currentRecordId)
+  const sortedRecords = useMemo(() => {
+    const statusOrder: Record<TicketStatus, number> = {
+      待处理: 0,
+      处理中: 1,
+      已转派: 2,
+      已回访: 3,
+    }
+
+    return [...records].sort((a, b) => {
+      const urgencyDelta = urgencyScore(b.analysis.urgency) - urgencyScore(a.analysis.urgency)
+      if (urgencyDelta !== 0) return urgencyDelta
+      const statusDelta = statusOrder[a.status] - statusOrder[b.status]
+      if (statusDelta !== 0) return statusDelta
+      return b.createdAt.localeCompare(a.createdAt)
+    })
+  }, [records])
 
   async function analyzeTicket() {
     setIsAnalyzing(true)
@@ -265,6 +295,7 @@ function App() {
     setAnalysis(result)
     setRecords((current) => [record, ...current])
     setCurrentRecordId(record.id)
+    setActiveView('detail')
   }
 
   async function transcribeVoiceDraft() {
@@ -324,6 +355,16 @@ function App() {
     )
   }
 
+  function updateCurrentAnalysisField<Key extends keyof AnalysisResult>(key: Key, value: AnalysisResult[Key]) {
+    setAnalysis((current) => ({ ...current, [key]: value }))
+    if (!currentRecord) return
+    setRecords((current) =>
+      current.map((record) =>
+        record.id === currentRecord.id ? { ...record, analysis: { ...record.analysis, [key]: value } } : record,
+      ),
+    )
+  }
+
   function selectRecord(record: TicketRecord) {
     setTicket(record.text)
     setAnalysis(record.analysis)
@@ -332,7 +373,21 @@ function App() {
 
   function loadRecord(record: TicketRecord) {
     selectRecord(record)
+    setActiveView('detail')
+  }
+
+  function returnToWorkspace(message?: string) {
     setActiveView('workspace')
+    if (message) {
+      setSuccessMessage(message)
+      window.setTimeout(() => setSuccessMessage(''), 2200)
+    }
+  }
+
+  function markCurrentRecord(status: TicketStatus) {
+    if (!currentRecord) return
+    updateStatus(currentRecord.id, status)
+    returnToWorkspace(`工单 ${currentRecord.id.slice(0, 8)} 已更新为「${status}」，工作台已刷新。`)
   }
 
   async function copyText(key: string, text: string) {
@@ -373,12 +428,14 @@ function App() {
     const nextProfile = { ...profile, phone: authPhone || profile.phone }
     setProfile(nextProfile)
     setIsSignedIn(true)
+    setActiveView('workspace')
     persistJson('jinzhi-auth', true)
     persistJson('jinzhi-profile', nextProfile)
   }
 
   function logout() {
     setIsSignedIn(false)
+    setActiveView('workspace')
     persistJson('jinzhi-auth', false)
   }
 
@@ -396,6 +453,53 @@ function App() {
 
   function updateNoticeDraft<Key extends keyof NoticeResult>(key: Key, value: NoticeResult[Key]) {
     setNotice((current) => ({ ...current, [key]: value }))
+  }
+
+  if (!isSignedIn) {
+    return (
+      <main className="login-shell">
+        <section className="login-card" aria-label="演示登录">
+          <div className="brand login-brand">
+            <span className="brand-mark" aria-hidden="true">
+              津
+            </span>
+            <span>
+              <strong>津智助理</strong>
+              <small>AI 社区网格员助手</small>
+            </span>
+          </div>
+          <div>
+            <p className="eyebrow">
+              <ShieldCheck size={16} aria-hidden="true" />
+              演示登录
+            </p>
+            <h1>手机号验证后进入工单工作台</h1>
+            <p className="brief-text">这里不接真实短信服务，点击登录会直接模拟网格员身份验证成功。</p>
+          </div>
+          <div className="login-form">
+            <label htmlFor="auth-phone">手机号</label>
+            <input id="auth-phone" inputMode="tel" value={authPhone} onChange={(event) => setAuthPhone(event.target.value)} />
+            <label htmlFor="auth-code">验证码</label>
+            <div className="code-row">
+              <input id="auth-code" inputMode="numeric" value={authCode} onChange={(event) => setAuthCode(event.target.value)} />
+              <button className="secondary-button" type="button" onClick={() => setAuthCode('246810')}>
+                获取验证码
+              </button>
+            </div>
+            <label htmlFor="auth-role">登录身份</label>
+            <select id="auth-role" value={profile.role} onChange={(event) => setProfile({ ...profile, role: event.target.value })}>
+              <option value="网格员">网格员</option>
+              <option value="社区负责人">社区负责人</option>
+              <option value="物业客服">物业客服</option>
+            </select>
+            <button className="primary-button login-submit" type="button" onClick={loginDemo}>
+              <LogIn size={18} aria-hidden="true" />
+              进入工作台
+            </button>
+          </div>
+        </section>
+      </main>
+    )
   }
 
   return (
@@ -449,12 +553,12 @@ function App() {
         </div>
         <div className="brief-actions">
           {activeView !== 'workspace' ? (
-            <button className="primary-button" type="button" onClick={() => setActiveView('workspace')}>
+            <button className="primary-button" type="button" onClick={() => returnToWorkspace()}>
               <Sparkles size={18} aria-hidden="true" />
-              去处理工单
+              返回工作台
             </button>
           ) : (
-            <span className="brief-status">当前工单待分析</span>
+            <span className="brief-status">待处理工单 {dashboard.metrics[0].value} 条</span>
           )}
           <button className="secondary-link button-link" type="button" onClick={() => fileInputRef.current?.click()}>
             <Upload size={18} aria-hidden="true" />
@@ -465,6 +569,90 @@ function App() {
       </section>
 
       {activeView === 'workspace' && (
+        <>
+          {successMessage && (
+            <div className="success-banner" role="status">
+              <CheckCircle2 size={17} aria-hidden="true" />
+              {successMessage}
+            </div>
+          )}
+
+          <section className="metric-grid compact-metrics" aria-label="工作台指标">
+            {dashboard.metrics.map((metric) => (
+              <article className="metric-card" key={metric.label}>
+                <span>{metric.label}</span>
+                <strong>{metric.value}</strong>
+                <p>{metric.hint}</p>
+              </article>
+            ))}
+          </section>
+
+          <section className="dashboard-workspace">
+            <section className="panel ticket-list-panel" aria-label="待办工单列表">
+              <div className="panel-heading">
+                <div>
+                  <p className="section-kicker">
+                    <ListChecks size={16} aria-hidden="true" />
+                    今日待办
+                  </p>
+                  <h2>按紧急程度处理工单</h2>
+                </div>
+                <span className="status-pill">{sortedRecords.filter((record) => record.status !== '已回访').length} 条待处理</span>
+              </div>
+
+              <div className="ticket-list">
+                {sortedRecords.map((record) => (
+                  <button className="ticket-card" type="button" key={record.id} onClick={() => loadRecord(record)}>
+                    <span className={`urgency urgency-${record.analysis.urgency}`}>{record.analysis.urgency}紧急</span>
+                    <span className={`status-dot status-${record.status}`}>{record.status}</span>
+                    <strong>{record.analysis.summary}</strong>
+                    <small>
+                      {record.createdAt} · {record.analysis.category} · {record.assignee}
+                    </small>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <aside className="panel quick-notice-panel" aria-label="通知生成器快捷入口">
+              <div className="panel-heading">
+                <div>
+                  <p className="section-kicker">
+                    <Megaphone size={16} aria-hidden="true" />
+                    快捷通知
+                  </p>
+                  <h2>发居民群前先起草</h2>
+                </div>
+              </div>
+              <label htmlFor="quick-notice-input">通知主题</label>
+              <input
+                id="quick-notice-input"
+                value={noticePrompt}
+                onChange={(event) => setNoticePrompt(event.target.value)}
+              />
+              <div className="button-row">
+                <button className="primary-button" type="button" onClick={generateNotice} disabled={isGenerating}>
+                  {isGenerating ? <Loader2 className="spin" size={16} aria-hidden="true" /> : <FileText size={16} aria-hidden="true" />}
+                  {isGenerating ? '生成中' : '生成通知'}
+                </button>
+                <button className="secondary-button" type="button" onClick={() => setActiveView('notice')}>
+                  独立页面
+                </button>
+              </div>
+              <div className="notice-preview">
+                <span>居民群版</span>
+                <p>{notice.friendly}</p>
+                <button className="secondary-button" type="button" onClick={() => copyText('workspace-friendly', notice.friendly)}>
+                  <Copy size={15} aria-hidden="true" />
+                  {copiedKey === 'workspace-friendly' ? '已复制' : '复制'}
+                </button>
+              </div>
+            </aside>
+          </section>
+        </>
+      )}
+
+      {activeView === 'detail' && (
         <>
           <section className="workbench-flow" aria-label="工单处理流程">
             <div className="flow-step active">
@@ -623,7 +811,7 @@ function App() {
               <div className="state-grid">
                 <div className="state-tile">
                   <span>流转状态</span>
-                  <strong>{currentRecord?.status || '待转派'}</strong>
+                  <strong>{currentRecord?.status || '待处理'}</strong>
                 </div>
                 <div className="state-tile">
                   <span>人工复核</span>
@@ -638,11 +826,12 @@ function App() {
               <label htmlFor="current-status">流转状态</label>
               <select
                 id="current-status"
-                value={currentRecord?.status || '待转派'}
+                value={currentRecord?.status || '待处理'}
                 onChange={(event) => currentRecord && updateStatus(currentRecord.id, event.target.value as TicketStatus)}
                 disabled={!currentRecord}
               >
-                <option value="待转派">待转派</option>
+                <option value="待处理">待处理</option>
+                <option value="处理中">处理中</option>
                 <option value="已转派">已转派</option>
                 <option value="已回访">已回访</option>
               </select>
@@ -689,15 +878,56 @@ function App() {
                 <option value="需调整">需调整</option>
               </select>
 
+              <div className="correction-box" aria-label="人工修正 AI 分析">
+                <span>AI 分析修正</span>
+                <label htmlFor="analysis-category">
+                  类别
+                  <input
+                    id="analysis-category"
+                    value={analysis.category}
+                    onChange={(event) => updateCurrentAnalysisField('category', event.target.value)}
+                  />
+                </label>
+                <label htmlFor="analysis-urgency">
+                  紧急程度
+                  <select
+                    id="analysis-urgency"
+                    value={analysis.urgency}
+                    onChange={(event) => updateCurrentAnalysisField('urgency', event.target.value as AnalysisResult['urgency'])}
+                  >
+                    <option value="高">高</option>
+                    <option value="中">中</option>
+                    <option value="低">低</option>
+                  </select>
+                </label>
+                <label htmlFor="analysis-department">
+                  推荐部门
+                  <input
+                    id="analysis-department"
+                    value={analysis.department}
+                    onChange={(event) => updateCurrentAnalysisField('department', event.target.value)}
+                  />
+                </label>
+              </div>
+
               <div className="action-stack" aria-label="快捷处置">
                 <button
                   className="secondary-button"
                   type="button"
-                  onClick={() => currentRecord && updateStatus(currentRecord.id, '已转派')}
+                  onClick={() => markCurrentRecord('处理中')}
                   disabled={!currentRecord}
                 >
                   <Send size={16} aria-hidden="true" />
-                  确认转派
+                  标记处理中
+                </button>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => markCurrentRecord('已转派')}
+                  disabled={!currentRecord}
+                >
+                  <Send size={16} aria-hidden="true" />
+                  转交部门
                 </button>
                 <button
                   className="primary-button"
@@ -730,7 +960,7 @@ function App() {
                   <CheckCircle2 size={15} aria-hidden="true" />
                   <span>人工复核</span>
                 </div>
-                <div className={`workflow-step ${currentRecord?.status !== '待转派' ? 'done' : ''}`}>
+                <div className={`workflow-step ${currentRecord?.status !== '待处理' ? 'done' : ''}`}>
                   <CheckCircle2 size={15} aria-hidden="true" />
                   <span>转派跟进</span>
                 </div>
@@ -800,12 +1030,11 @@ function App() {
               <div className="login-form">
                 <label htmlFor="auth-phone">手机号</label>
                 <input id="auth-phone" value={authPhone} onChange={(event) => setAuthPhone(event.target.value)} />
-                <label htmlFor="auth-password">密码</label>
+                <label htmlFor="auth-password">验证码</label>
                 <input
                   id="auth-password"
-                  type="password"
-                  value={authPassword}
-                  onChange={(event) => setAuthPassword(event.target.value)}
+                  value={authCode}
+                  onChange={(event) => setAuthCode(event.target.value)}
                 />
                 <button className="primary-button" type="button" onClick={loginDemo}>
                   <KeyRound size={18} aria-hidden="true" />
@@ -932,7 +1161,7 @@ function App() {
                 <span role="columnheader">复核</span>
                 <span role="columnheader">操作</span>
               </div>
-              {records.slice(0, 8).map((record) => (
+              {sortedRecords.slice(0, 8).map((record) => (
                 <div className={`record-row ${record.id === currentRecordId ? 'active' : ''}`} role="row" key={record.id}>
                   <span role="cell">{record.createdAt}</span>
                   <button className="text-button" type="button" onClick={() => selectRecord(record)} role="cell">
@@ -941,7 +1170,8 @@ function App() {
                   <span role="cell">{record.analysis.category}</span>
                   <span role="cell">
                     <select value={record.status} onChange={(event) => updateStatus(record.id, event.target.value as TicketStatus)}>
-                      <option value="待转派">待转派</option>
+                      <option value="待处理">待处理</option>
+                      <option value="处理中">处理中</option>
                       <option value="已转派">已转派</option>
                       <option value="已回访">已回访</option>
                     </select>
@@ -1034,7 +1264,74 @@ function App() {
         </section>
       )}
 
+      {activeView === 'notice' && (
+        <section className="notice-page">
+          <article className="panel notice-compose-panel">
+            <div className="panel-heading">
+              <div>
+                <p className="section-kicker">
+                  <Megaphone size={16} aria-hidden="true" />
+                  通知生成器
+                </p>
+                <h2>一键生成三种表达</h2>
+              </div>
+              <span className="status-pill">可编辑后复制</span>
+            </div>
+            <label htmlFor="notice-page-input">通知主题</label>
+            <p className="field-helper">例如“周日停水”“消防通道清理”“电梯检修”。系统会同时生成正式公告和居民群大白话版本。</p>
+            <input
+              id="notice-page-input"
+              value={noticePrompt}
+              onChange={(event) => setNoticePrompt(event.target.value)}
+            />
+            <div className="button-row">
+              <button className="primary-button" type="button" onClick={generateNotice} disabled={isGenerating}>
+                {isGenerating ? <Loader2 className="spin" size={18} aria-hidden="true" /> : <FileText size={18} aria-hidden="true" />}
+                {isGenerating ? '生成中' : 'AI 生成通知'}
+              </button>
+              <button className="secondary-button" type="button" onClick={() => setNoticePrompt('周日停水')}>
+                使用停水示例
+              </button>
+            </div>
+          </article>
+
+          <section className="notice-output notice-page-output">
+            <NoticeBlock
+              title="正式版"
+              text={notice.formal}
+              copied={copiedKey === 'notice-formal'}
+              onChange={(value) => updateNoticeDraft('formal', value)}
+              onCopy={() => copyText('notice-formal', notice.formal)}
+            />
+            <NoticeBlock
+              title="居民群版"
+              text={notice.friendly}
+              copied={copiedKey === 'notice-friendly'}
+              onChange={(value) => updateNoticeDraft('friendly', value)}
+              onCopy={() => copyText('notice-friendly', notice.friendly)}
+            />
+            <NoticeBlock
+              title="短信版"
+              text={notice.sms}
+              copied={copiedKey === 'notice-sms'}
+              onChange={(value) => updateNoticeDraft('sms', value)}
+              onCopy={() => copyText('notice-sms', notice.sms)}
+            />
+          </section>
+        </section>
+      )}
+
       {activeView === 'dashboard' && (
+        <>
+        <section className="metric-grid compact-metrics" aria-label="数据看板指标">
+          {dashboard.metrics.map((metric) => (
+            <article className="metric-card" key={metric.label}>
+              <span>{metric.label}</span>
+              <strong>{metric.value}</strong>
+              <p>{metric.hint}</p>
+            </article>
+          ))}
+        </section>
       <section className="dashboard" id="dashboard">
         <div className="panel chart-panel">
           <div className="panel-heading">
@@ -1080,9 +1377,14 @@ function App() {
               <Copy size={16} aria-hidden="true" />
               {copiedKey === 'report' ? '已复制' : '复制周报'}
             </button>
+            <button className="secondary-button" type="button" onClick={() => copyText('report-export', reportText)}>
+              <FileText size={16} aria-hidden="true" />
+              {copiedKey === 'report-export' ? '已准备' : '导出报告'}
+            </button>
           </div>
         </div>
       </section>
+        </>
       )}
 
       {activeView === 'opc' && (
@@ -1272,7 +1574,7 @@ function createRecord(text: string, result: AnalysisResult): TicketRecord {
     text,
     analysis: result,
     review: '待复核',
-    status: '待转派',
+    status: '待处理',
     assignee: result.department,
     follower: '王明',
     dueAt: result.urgency === '高' ? '今日 18:00 前回访' : '24 小时内跟进',
@@ -1328,6 +1630,10 @@ function getTopCategories(records: TicketRecord[]) {
     .map(([name, count]) => ({ name, count, percent: Math.round((count / max) * 100) }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 5)
+}
+
+function urgencyScore(urgency: AnalysisResult['urgency']) {
+  return urgency === '高' ? 3 : urgency === '中' ? 2 : 1
 }
 
 function buildWeeklyReport(records: TicketRecord[]) {
