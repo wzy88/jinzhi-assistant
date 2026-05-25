@@ -21,17 +21,17 @@ export default async function handler(req, res) {
 }
 
 async function callDashScope(prompt, category) {
-  const apiKey = process.env.DASHSCOPE_API_KEY
-  if (!apiKey) throw new Error('Missing DASHSCOPE_API_KEY')
+  const { provider, apiKey, model, url } = getModelConfig()
+  if (!apiKey) throw new Error(`Missing ${provider === 'deepseek' ? 'DEEPSEEK_API_KEY' : 'DASHSCOPE_API_KEY'}`)
 
-  const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: process.env.DASHSCOPE_MODEL || 'qwen-plus',
+      model,
       temperature: 0.35,
       messages: [
         {
@@ -60,5 +60,24 @@ function localNotice(prompt, category) {
     formal: `各位居民：关于“${prompt}”，社区将结合近期${category}类诉求开展专项提醒与现场巡查。请大家主动配合社区及物业工作，共同维护安全、有序、整洁的居住环境。`,
     friendly: `邻居们大家好，最近社区在关注“${prompt}”。如果大家发现类似问题，可以及时联系网格员，我们会尽快协调处理，也请大家互相提醒、一起配合。`,
     sms: `社区提醒：${prompt}。如遇相关问题请联系网格员或物业，感谢理解与配合。`,
+  }
+}
+
+function getModelConfig() {
+  const provider = String(process.env.MODEL_PROVIDER || '').toLowerCase()
+  if (provider === 'deepseek' || process.env.DEEPSEEK_API_KEY) {
+    return {
+      provider: 'deepseek',
+      apiKey: process.env.DEEPSEEK_API_KEY || '',
+      model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+      url: 'https://api.deepseek.com/chat/completions',
+    }
+  }
+
+  return {
+    provider: 'dashscope',
+    apiKey: process.env.DASHSCOPE_API_KEY || '',
+    model: process.env.DASHSCOPE_MODEL || 'qwen-plus',
+    url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
   }
 }

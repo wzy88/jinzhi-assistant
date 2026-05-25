@@ -716,10 +716,60 @@ textarea:focus {
 
 .toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
   padding: 12px;
+}
+
+.intake-panel {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.15fr) auto;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+.intake-copy {
+  align-self: center;
+}
+
+.intake-copy h2 {
+  margin: 0 0 8px;
+  color: var(--gov-blue);
+  font-size: 20px;
+}
+
+.intake-copy p:not(.breadcrumb) {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.58;
+}
+
+.intake-panel textarea {
+  min-height: 112px;
+}
+
+.intake-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.intake-actions button {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 14px;
+  color: var(--gov-blue-2);
+  background: var(--surface);
+  font-weight: 800;
+}
+
+.intake-actions button.primary {
+  color: #ffffff;
+  border-color: var(--gov-blue);
+  background: var(--gov-blue);
 }
 
 .toolbar > span {
@@ -1954,6 +2004,10 @@ textarea:focus {
   width: min(1040px, calc(100vw - 48px));
 }
 
+.tool-modal-flow {
+  width: min(980px, calc(100vw - 48px));
+}
+
 .tool-modal-content {
   padding-top: 0;
 }
@@ -1982,6 +2036,16 @@ textarea:focus {
 .media-modal-grid {
   grid-template-columns: minmax(0, 1fr) 310px;
   min-height: 500px;
+}
+
+.flow-tool-grid {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: #f6f8fb;
 }
 
 .tool-side-panel,
@@ -2038,7 +2102,9 @@ textarea:focus {
 
 .tool-field-group button.selected,
 .refine-panel button:hover,
-.tone-row button.selected {
+.tone-row button.selected,
+.editor-toolbar button.selected,
+.flow-step-actions button:hover {
   color: #ffffff;
   border-color: var(--gov-blue);
   background: var(--gov-blue);
@@ -2079,6 +2145,16 @@ textarea:focus {
     radial-gradient(circle at 50% 48%, rgba(35, 167, 198, 0.28), transparent 30%),
     linear-gradient(145deg, #f7fcff 0%, #d8eef5 100%);
   box-shadow: 0 18px 42px rgba(0, 44, 96, 0.18);
+}
+
+.poster-art.poster-story {
+  width: min(250px, 86%);
+  aspect-ratio: 9 / 16;
+}
+
+.poster-art.poster-banner {
+  width: min(420px, 94%);
+  aspect-ratio: 16 / 7;
 }
 
 .poster-art strong {
@@ -2243,11 +2319,15 @@ textarea:focus {
   background: linear-gradient(135deg, #8fb1f3, #002c60);
 }
 
-.asset-strip i:nth-child(2) { background: linear-gradient(135deg, #d9dadb, #2e3132); }
-.asset-strip i:nth-child(3) { background: linear-gradient(135deg, #f8f9fa, #8fb1f3); }
-.asset-strip i:nth-child(4) { background: linear-gradient(135deg, #23a7c6, #1b437d); }
+.asset-strip i:nth-child(2),
+.asset-strip .asset-thumb:nth-child(2) { background: linear-gradient(135deg, #d9dadb, #2e3132); }
+.asset-strip i:nth-child(3),
+.asset-strip .asset-thumb:nth-child(3) { background: linear-gradient(135deg, #f8f9fa, #8fb1f3); }
+.asset-strip i:nth-child(4),
+.asset-strip .asset-thumb:nth-child(4) { background: linear-gradient(135deg, #23a7c6, #1b437d); }
 
-.asset-strip i.selected {
+.asset-strip i.selected,
+.asset-strip .asset-thumb.selected {
   box-shadow: 0 0 0 3px rgba(27, 67, 125, 0.18);
 }
 
@@ -2332,6 +2412,14 @@ textarea:focus {
 .editor-toolbar button {
   min-width: 30px;
   text-align: center;
+}
+
+.editor-bold {
+  font-weight: 800;
+}
+
+.editor-italic {
+  font-style: italic;
 }
 
 .media-inline-image {
@@ -2439,6 +2527,98 @@ textarea:focus {
 .tool-modal-footer button.primary {
   color: #ffffff;
   background: var(--gov-blue);
+}
+
+.flow-preview-panel {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  border-left: 1px solid var(--line-soft);
+  padding: 18px;
+  background: var(--surface);
+}
+
+.flow-steps {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flow-steps li button {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--text);
+  background: var(--surface-soft);
+  text-align: left;
+}
+
+.flow-steps li.selected button {
+  border-color: var(--gov-blue);
+  background: #f7faff;
+  box-shadow: 0 0 0 3px rgba(27, 67, 125, 0.08);
+}
+
+.flow-steps span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.flow-step-actions,
+.flow-node-track {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.flow-step-actions button {
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--gov-blue-2);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.flow-node-track {
+  align-items: stretch;
+}
+
+.flow-node-track button {
+  min-width: 120px;
+  flex: 1;
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--gov-blue-2);
+  background: #f7faff;
+  text-align: left;
+}
+
+.flow-node-track button.selected {
+  color: #ffffff;
+  border-color: var(--gov-blue);
+  background: var(--gov-blue);
+}
+
+.flow-node-track b {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .footer-check {
@@ -3151,6 +3331,7 @@ textarea:focus {
   .drawer.large.modal-panel,
   .notice-modal,
   .notice-workbench-modal,
+  .tool-modal,
   .filter-modal,
   .insight-modal,
   .report-modal {
@@ -3161,6 +3342,11 @@ textarea:focus {
   .filter-summary,
   .filter-option-grid,
   .filter-fields,
+  .intake-panel,
+  .poster-modal-grid,
+  .video-modal-grid,
+  .media-modal-grid,
+  .flow-tool-grid,
   .insight-hero,
   .report-cover,
   .insight-grid,

@@ -71,6 +71,16 @@ type NoticeDraft = {
   sms: string
 }
 
+type ApiAnalysis = {
+  category: string
+  urgency: '高' | '中' | '低' | Urgency
+  emotion: string
+  department: string
+  summary: string
+  nextSteps?: string[]
+  confidence?: number
+}
+
 type PublishRecord = {
   id: string
   title: string
@@ -179,6 +189,9 @@ function App() {
   const [notice, setNotice] = useState<NoticeDraft>(defaultNotice)
   const [toolOutput, setToolOutput] = useState('')
   const [copied, setCopied] = useState('')
+  const [analysisText, setAnalysisText] = useState('')
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [apiMode, setApiMode] = useState<'规则兜底' | '云端模型' | '本地规则'>('规则兜底')
   const [noticeReturnTicketId, setNoticeReturnTicketId] = useState<string | null>(null)
   const [ticketFilter, setTicketFilter] = useState<'全部' | '高紧急度' | '待审核'>('全部')
   const [selectedChannels, setSelectedChannels] = useState<NoticeChannel[]>(['工作群', '社区群', '短信'])
@@ -199,7 +212,8 @@ function App() {
   const accuracy =
     reviewedTickets.length > 0
       ? Math.round((reviewedTickets.filter((ticket) => ticket.review === '正确').length / reviewedTickets.length) * 100)
-      : 98
+      : 0
+  const accuracyLabel = reviewedTickets.length > 0 ? `${accuracy}%` : '待评测'
 
   const sortedTickets = useMemo(
     () => [...tickets].sort((a, b) => urgencyWeight(b.urgency) - urgencyWeight(a.urgency)),
@@ -269,12 +283,30 @@ function App() {
     setDrawer(null)
   }
 
-  function generateNotice(topic = noticeTopic) {
-    setNotice({
-      formal: `各位居民：关于“${topic}”，社区将根据近期居民诉求和现场情况开展提醒、巡查与协同处置。请大家主动配合社区及物业工作，共同维护安全、有序、整洁的生活环境。`,
-      friendly: `邻居们大家好，最近社区在关注“${topic}”。如果您发现相关情况，可以及时联系网格员，我们会尽快协调处理，也请大家互相提醒、一起配合。`,
-      sms: `社区提醒：${topic}。如遇相关问题请联系网格员或物业，感谢理解与配合。`,
-    })
+  async function analyzeAndAddTicket() {
+    const text = analysisText.trim()
+    if (!text) {
+      showToast('请先输入居民诉求')
+      return
+    }
+
+    setIsAnalyzing(true)
+    const { ticket, source } = await analyzeTicketText(text, tickets.length + 1)
+    setApiMode(source)
+    setTickets((current) => persistTickets([ticket, ...current]))
+    setSelectedTicketId(ticket.id)
+    setTicketFilter('全部')
+    setAnalysisText('')
+    setDrawer('ticket')
+    setIsAnalyzing(false)
+    showToast(source === '云端模型' ? '已调用云端模型并入库' : '已用本地规则兜底并入库')
+  }
+
+  async function generateNotice(topic = noticeTopic) {
+    const sourceTicket = noticeReturnTicketId ? selectedTicket : undefined
+    const { notice: nextNotice, source } = await generateNoticeDraft(topic, sourceTicket)
+    setApiMode(source)
+    setNotice(nextNotice)
   }
 
   function openTool(tool: ToolKey | 'notice', topic?: string) {
@@ -290,7 +322,7 @@ function App() {
       setToolOutput('虚拟人脚本：居民朋友们好，我是津智助理。今天提醒大家关注春季用电、通风和消防通道安全。')
     }
     if (tool === 'media') {
-      setToolOutput('Notice: Community Health & Wellness Seminar\n\nDear residents, we are excited to announce a special seminar focusing on modern health practices. Our district medical experts will be present to share insights on digital health management and seasonal wellness.')
+      setToolOutput('社区健康与安全讲座\n\n各位居民：社区将组织健康与安全主题讲座，邀请社区医生和工作人员分享季节健康管理、居家安全提醒和常见问题处理方式。欢迎大家按时参加，也请互相转告。')
     }
     setDrawer(tool)
   }
@@ -363,16 +395,12 @@ function App() {
 
   async function importTickets(file: File) {
     const text = await file.text()
-    const rows = text
-      .split(/\r?\n/)
-      .map((row) => row.trim())
-      .filter(Boolean)
-      .slice(0, 50)
+    const rows = parseTicketRows(text).slice(0, 50)
     if (rows.length === 0) {
       showToast('未识别到可导入的诉求文本')
       return
     }
-    const imported = rows.map((row, index) => analyzeImportedTicket(row, tickets.length + index + 1))
+    const imported = rows.map((row, index) => buildLocalTicket(row, tickets.length + index + 1, '批量导入'))
     setTickets((current) => persistTickets([...imported, ...current]))
     setSelectedTicketId(imported[0].id)
     setTicketFilter('全部')
@@ -418,7 +446,7 @@ function App() {
           <Overview
             pendingCount={pendingCount}
             urgentCount={urgentCount}
-            accuracy={accuracy}
+            accuracyLabel={accuracyLabel}
             tickets={sortedTickets}
             openTicket={openTicket}
             openNotice={() => openTool('notice', '社区安全提醒')}
@@ -431,7 +459,13 @@ function App() {
           <TicketsCenter
             tickets={visibleTickets}
             pendingCount={pendingCount}
-            accuracy={accuracy}
+            accuracyLabel={accuracyLabel}
+            reviewedCount={reviewedTickets.length}
+            analysisText={analysisText}
+            setAnalysisText={setAnalysisText}
+            analyzeAndAddTicket={analyzeAndAddTicket}
+            isAnalyzing={isAnalyzing}
+            apiMode={apiMode}
             openTicket={openTicket}
             filter={ticketFilter}
             setFilter={setTicketFilter}
@@ -520,6 +554,7 @@ function App() {
           setOutput={setToolOutput}
           copyText={copyText}
           copied={copied}
+          showToast={showToast}
           close={() => setDrawer(null)}
         />
       )}
@@ -721,7 +756,7 @@ function PageHeader({
 function Overview({
   pendingCount,
   urgentCount,
-  accuracy,
+  accuracyLabel,
   tickets,
   openTicket,
   openNotice,
@@ -731,7 +766,7 @@ function Overview({
 }: {
   pendingCount: number
   urgentCount: number
-  accuracy: number
+  accuracyLabel: string
   tickets: Ticket[]
   openTicket: (ticket: Ticket) => void
   openNotice: () => void
@@ -757,7 +792,7 @@ function Overview({
       <section className="stats-grid">
         <StatCard icon={<Boxes />} label="总工单量" value="1,284" trend="+12%" />
         <StatCard icon={<AlertTriangle />} label="高优先级事件" value={String(urgentCount)} tone="danger" trend="高危" />
-        <StatCard icon={<Sparkles />} label="AI 识别准确率" value={`${accuracy}.2%`} badge="AI 增强识别" tone="ai" />
+        <StatCard icon={<Sparkles />} label="AI 识别准确率" value={accuracyLabel} badge="复核后更新" tone="ai" />
         <StatCard icon={<Gauge />} label="平均响应时间" value="1.4h" hint="平均处理" />
       </section>
       <section className="overview-grid">
@@ -795,7 +830,13 @@ function Overview({
 function TicketsCenter({
   tickets,
   pendingCount,
-  accuracy,
+  accuracyLabel,
+  reviewedCount,
+  analysisText,
+  setAnalysisText,
+  analyzeAndAddTicket,
+  isAnalyzing,
+  apiMode,
   openTicket,
   filter,
   setFilter,
@@ -808,7 +849,13 @@ function TicketsCenter({
 }: {
   tickets: Ticket[]
   pendingCount: number
-  accuracy: number
+  accuracyLabel: string
+  reviewedCount: number
+  analysisText: string
+  setAnalysisText: (value: string) => void
+  analyzeAndAddTicket: () => void
+  isAnalyzing: boolean
+  apiMode: '规则兜底' | '云端模型' | '本地规则'
   openTicket: (ticket: Ticket) => void
   filter: '全部' | '高紧急度' | '待审核'
   setFilter: (filter: '全部' | '高紧急度' | '待审核') => void
@@ -829,10 +876,36 @@ function TicketsCenter({
         action={
           <div className="mini-metrics">
             <StatInline label="待处理" value={pendingCount} />
-            <StatInline label="智能分类率" value={`${accuracy}%`} />
+            <StatInline label="复核准确率" value={accuracyLabel} />
+            <StatInline label="已复核" value={reviewedCount} />
           </div>
         }
       />
+      <section className="panel intake-panel">
+        <div className="intake-copy">
+          <p className="breadcrumb">单条诉求智能分析</p>
+          <h2>粘贴居民诉求，调用模型分析后自动入库</h2>
+          <p>优先调用 `/api/analyze`；如果本地开发或模型不可用，自动使用规则引擎兜底，避免演示中断。当前模式：{apiMode}</p>
+        </div>
+        <label>
+          居民诉求原文
+          <textarea
+            value={analysisText}
+            onChange={(event) => setAnalysisText(event.target.value)}
+            placeholder="例如：12号楼消防通道被电动车占用，晚上老人出行也不安全，希望社区尽快协调。"
+            rows={5}
+          />
+        </label>
+        <div className="intake-actions">
+          <button type="button" onClick={() => setAnalysisText('12号楼消防通道被电动车占用，晚上老人出行也不安全，希望社区尽快协调。')}>
+            填入示例
+          </button>
+          <button className="primary" type="button" onClick={analyzeAndAddTicket} disabled={isAnalyzing}>
+            <Sparkles size={16} />
+            {isAnalyzing ? '分析中...' : '智能分析并入库'}
+          </button>
+        </div>
+      </section>
       <section className="toolbar panel">
         <div className="segmented">
           {(['全部', '高紧急度', '待审核'] as const).map((item) => (
@@ -1692,6 +1765,7 @@ function ToolDrawer({
   setOutput,
   copyText,
   copied,
+  showToast,
   close,
 }: {
   type: ToolKey
@@ -1701,23 +1775,24 @@ function ToolDrawer({
   setOutput: (value: string) => void
   copyText: (key: string, text: string) => void
   copied: string
+  showToast: (message: string) => void
   close: () => void
 }) {
   const title =
     type === 'poster'
-      ? 'AI Poster Generator'
+      ? 'AI 海报生成器'
       : type === 'video'
-        ? 'AI Video Creation'
+        ? 'AI 宣教视频制作'
         : type === 'media'
           ? '新媒体排版中心'
           : '流程可视化工具'
   const subtitle =
     type === 'poster'
-      ? 'Powered by Jinzhi Assistant 1.4.2'
+      ? '津智助理 · 社区通知转海报'
       : type === 'video'
-        ? 'Jinzhi Assistant Toolbox · Intelligent Synthesis'
+        ? '津智助理工具箱 · 脚本、分镜与模拟渲染'
         : type === 'media'
-          ? 'Smart Community Notice'
+          ? '社区通知智能排版与分发预览'
           : '可复制或下载继续编辑'
 
   return (
@@ -1733,10 +1808,11 @@ function ToolDrawer({
               setOutput={setOutput}
               copyText={copyText}
               copied={copied}
+              showToast={showToast}
             />
           )}
           {type === 'video' && (
-            <VideoToolModal topic={topic} setTopic={setTopic} output={output} setOutput={setOutput} />
+            <VideoToolModal topic={topic} setTopic={setTopic} output={output} setOutput={setOutput} showToast={showToast} />
           )}
           {type === 'media' && (
             <MediaToolModal
@@ -1746,6 +1822,7 @@ function ToolDrawer({
               setOutput={setOutput}
               copyText={copyText}
               copied={copied}
+              showToast={showToast}
             />
           )}
           {type === 'flow' && (
@@ -1756,6 +1833,7 @@ function ToolDrawer({
               setOutput={setOutput}
               copyText={copyText}
               copied={copied}
+              showToast={showToast}
             />
           )}
         </div>
@@ -1771,6 +1849,7 @@ function PosterToolModal({
   setOutput,
   copyText,
   copied,
+  showToast,
 }: {
   topic: string
   setTopic: (topic: string) => void
@@ -1778,77 +1857,140 @@ function PosterToolModal({
   setOutput: (value: string) => void
   copyText: (key: string, text: string) => void
   copied: string
+  showToast: (message: string) => void
 }) {
-  const posterText = output || 'District Water Authority Notice: Due to ongoing drought conditions in the northern sector, residents are advised to reduce non-essential water usage.'
+  const [style, setStyle] = useState('政务清晰')
+  const [dimension, setDimension] = useState('方图 1:1')
+  const [palette, setPalette] = useState(0)
+  const [history, setHistory] = useState<string[]>([])
+  const [future, setFuture] = useState<string[]>([])
+  const posterText = output || buildPosterDraft(topic, style)
+  const palettes = [
+    ['#1b437d', '#8fb1f3', '#ffffff', '#2e3132'],
+    ['#0f766e', '#99f6e4', '#f8fafc', '#134e4a'],
+    ['#7c2d12', '#fed7aa', '#fff7ed', '#431407'],
+  ]
+
+  function updateDraft(next: string) {
+    setHistory((current) => [...current.slice(-8), posterText])
+    setFuture([])
+    setOutput(next)
+  }
+
+  function undoDraft() {
+    const previous = history.at(-1)
+    if (!previous) return
+    setFuture((current) => [posterText, ...current])
+    setHistory((current) => current.slice(0, -1))
+    setOutput(previous)
+  }
+
+  function redoDraft() {
+    const next = future[0]
+    if (!next) return
+    setHistory((current) => [...current, posterText])
+    setFuture((current) => current.slice(1))
+    setOutput(next)
+  }
+
+  function refinePoster(action: string) {
+    if (action === '换一组主题色') {
+      const nextPalette = (palette + 1) % palettes.length
+      setPalette(nextPalette)
+      showToast('已切换海报配色')
+      return
+    }
+    if (action === '重新生成版式') {
+      setDimension(dimension === '方图 1:1' ? '手机长图' : '方图 1:1')
+      showToast('已切换海报版式')
+      return
+    }
+    updateDraft(`${posterText}\n\n重点提示：请居民互相转告，发现相关情况及时联系网格员或物业。`)
+    showToast('已补充正文强调语')
+  }
 
   return (
     <>
       <section className="poster-modal-grid">
         <div className="tool-side-panel">
           <label>
-            Poster Title
+            海报标题
             <input value={topic} onChange={(event) => setTopic(event.target.value)} />
           </label>
           <label>
-            Content Input
-            <textarea value={posterText} onChange={(event) => setOutput(event.target.value)} rows={7} />
+            正文内容
+            <textarea value={posterText} onChange={(event) => updateDraft(event.target.value)} rows={7} />
           </label>
           <div className="tool-field-group">
-            <span>Poster Style</span>
-            {['Modern', 'Traditional', 'Minimalist'].map((item) => (
-              <button className={item === 'Modern' ? 'selected' : ''} type="button" key={item}>
+            <span>海报风格</span>
+            {['政务清晰', '温和邻里', '极简提示'].map((item) => (
+              <button
+                className={item === style ? 'selected' : ''}
+                type="button"
+                key={item}
+                onClick={() => {
+                  setStyle(item)
+                  updateDraft(buildPosterDraft(topic, item))
+                }}
+              >
                 {item}
               </button>
             ))}
           </div>
           <div className="tool-field-group compact">
-            <span>Dimensions</span>
+            <span>发布尺寸</span>
             <div>
-              <button type="button">Mobile Story</button>
-              <button className="selected" type="button">Square (1:1)</button>
-              <button type="button">Banner</button>
+              {['手机长图', '方图 1:1', '横幅'].map((item) => (
+                <button className={item === dimension ? 'selected' : ''} type="button" key={item} onClick={() => setDimension(item)}>
+                  {item}
+                </button>
+              ))}
             </div>
           </div>
         </div>
         <div className="poster-preview-stage">
-          <div className="poster-art">
+          <div
+            className={`poster-art ${dimension === '手机长图' ? 'poster-story' : dimension === '横幅' ? 'poster-banner' : ''}`}
+            style={{
+              background: `linear-gradient(145deg, ${palettes[palette][2]} 0%, ${palettes[palette][1]} 100%)`,
+            }}
+          >
             <div className="water-drop">
               <span />
             </div>
-            <strong>{topic}</strong>
-            <p>节约用水，从每一次提醒开始。</p>
+            <strong style={{ color: palettes[palette][0] }}>{topic}</strong>
+            <p>{posterText.split('\n')[0]}</p>
           </div>
-          <span>Previewing at 1080 x 1080</span>
+          <span>预览尺寸：{dimension}</span>
         </div>
         <div className="tool-side-panel refine-panel">
-          <p className="tool-kicker">AI Refinement</p>
+          <p className="tool-kicker">AI 微调</p>
           {[
-            ['Change Theme Color', 'Update palette intelligently'],
-            ['Regenerate Layout', 'Try a different composition'],
-            ['Edit Text Overlays', 'Adjust font and placement'],
+            ['换一组主题色', '同步更新预览色板'],
+            ['重新生成版式', '切换适合渠道的构图'],
+            ['补充正文强调语', '增强提醒的可执行性'],
           ].map(([title, desc]) => (
-            <button type="button" key={title}>
+            <button type="button" key={title} onClick={() => refinePoster(title)}>
               <strong>{title}</strong>
               <span>{desc}</span>
             </button>
           ))}
           <div className="palette-row">
-            <i />
-            <i />
-            <i />
-            <i />
+            {palettes[palette].map((color) => (
+              <i style={{ background: color }} key={color} />
+            ))}
           </div>
           <div className="ai-note">
-            <strong>AI Note:</strong> 已为“节水提醒”匹配冷静蓝色调，提升公共服务信息的可信度。
+            <strong>AI 建议：</strong> 当前文案适合“{style}”风格，可直接用于公告栏或居民群配图。
           </div>
         </div>
       </section>
       <div className="tool-modal-footer">
-        <button type="button">Undo</button>
-        <button type="button">Redo</button>
+        <button type="button" onClick={undoDraft} disabled={history.length === 0}>撤销</button>
+        <button type="button" onClick={redoDraft} disabled={future.length === 0}>重做</button>
         <span />
-        <button type="button" onClick={() => copyText('tool', posterText)}>{copied === 'tool' ? '已复制' : 'Save to Drafts'}</button>
-        <button className="primary" type="button" onClick={() => downloadText(`${topic}-poster.txt`, posterText)}>Download Image</button>
+        <button type="button" onClick={() => copyText('tool', posterText)}>{copied === 'tool' ? '已复制' : '保存草稿'}</button>
+        <button className="primary" type="button" onClick={() => downloadText(`${topic}-poster.txt`, posterText)}>下载海报文案</button>
       </div>
     </>
   )
@@ -1859,64 +2001,139 @@ function VideoToolModal({
   setTopic,
   output,
   setOutput,
+  showToast,
 }: {
   topic: string
   setTopic: (topic: string) => void
   output: string
   setOutput: (value: string) => void
+  showToast: (message: string) => void
 }) {
+  const [voice, setVoice] = useState('沉稳女声')
+  const [format, setFormat] = useState('竖屏 9:16')
+  const [assetIndex, setAssetIndex] = useState(0)
+  const [assets, setAssets] = useState(['社区门口', '公告栏', '楼道巡查', '居民活动'])
+  const [progress, setProgress] = useState(0)
+  const [rendering, setRendering] = useState(false)
+  const [rendered, setRendered] = useState(false)
+  const script = output || buildVideoScript(topic)
+  const visibleAssets = assets.slice(Math.max(0, assets.length - 4))
+  const visibleAssetOffset = assets.length - visibleAssets.length
+
+  useEffect(() => {
+    if (!rendering) return undefined
+
+    const timer = window.setInterval(() => {
+      setProgress((current) => {
+        const next = Math.min(100, current + 20)
+        if (next === 100) {
+          window.clearInterval(timer)
+          setRendering(false)
+          setRendered(true)
+          showToast('视频脚本已完成模拟渲染')
+        }
+        return next
+      })
+    }, 420)
+
+    return () => window.clearInterval(timer)
+  }, [rendering, showToast])
+
+  function polishScript() {
+    const polished = `${script}\n\n结尾口播：请大家转发给家人和邻居，有问题及时联系社区网格员，我们会第一时间跟进。`
+    setOutput(polished)
+    showToast('已按宣教口吻润色脚本')
+  }
+
+  function startRender() {
+    if (!output) setOutput(script)
+    setProgress(0)
+    setRendered(false)
+    setRendering(true)
+  }
+
+  function addAsset(prefix: string) {
+    setAssetIndex(assets.length)
+    setAssets((current) => [...current, `${prefix}${current.length + 1}`])
+    showToast('素材已加入分镜库')
+  }
+
   return (
     <>
       <section className="video-modal-grid">
         <div className="tool-side-panel">
           <label>
-            Script Input
-            <textarea value={output} onChange={(event) => setOutput(event.target.value)} placeholder="Type or paste your video script here..." rows={7} />
+            视频主题
+            <input value={topic} onChange={(event) => setTopic(event.target.value)} />
+          </label>
+          <label>
+            宣教脚本
+            <textarea value={script} onChange={(event) => setOutput(event.target.value)} placeholder="输入或粘贴视频脚本..." rows={7} />
           </label>
           <div className="tool-counter-row">
-            <span>{output.length}/3000 characters</span>
-            <button type="button">AI Polish</button>
+            <span>{script.length}/3000 字</span>
+            <button type="button" onClick={polishScript}>AI 润色</button>
           </div>
           <div className="tool-field-group">
-            <span>AI Voiceover Selection</span>
-            {['Professional (Female)', 'Warm (Female)', 'Authoritative (Male)', 'Professional (Male)'].map((item, index) => (
-              <button className={index === 0 ? 'selected' : ''} type="button" key={item}>
+            <span>AI 配音</span>
+            {['沉稳女声', '亲切女声', '权威男声', '温和男声'].map((item) => (
+              <button className={item === voice ? 'selected' : ''} type="button" key={item} onClick={() => setVoice(item)}>
                 {item}
               </button>
             ))}
+          </div>
+          <div className="tool-field-group compact">
+            <span>视频规格</span>
+            <div>
+              {['竖屏 9:16', '横屏 16:9', '方屏 1:1'].map((item) => (
+                <button className={item === format ? 'selected' : ''} type="button" key={item} onClick={() => setFormat(item)}>
+                  {item}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         <div className="video-preview-panel">
           <div className="video-preview">
             <div className="skyline" />
-            <strong>"{topic} 正在生成智能宣教视频..."</strong>
-            <span>PREVIEW ONLY</span>
+            <strong>{rendered ? `"${topic}" 已生成 ${format} 分镜预览` : `"${topic}" 正在准备智能宣教视频`}</strong>
+            <span>{voice}</span>
           </div>
           <div className="asset-library">
             <div>
-              <p className="tool-kicker">Asset Library</p>
-              <button type="button">Upload</button>
-              <button type="button">Stock Footage</button>
+              <p className="tool-kicker">素材库</p>
+              <button type="button" onClick={() => addAsset('本地素材')}>上传</button>
+              <button type="button" onClick={() => addAsset('社区实景')}>实景素材</button>
             </div>
             <div className="asset-strip">
-              <i className="selected" />
-              <i />
-              <i />
-              <i />
-              <button type="button">+</button>
+              {visibleAssets.map((asset, index) => {
+                const originalIndex = visibleAssetOffset + index
+                return (
+                <button
+                  className={assetIndex === originalIndex ? 'selected asset-thumb' : 'asset-thumb'}
+                  type="button"
+                  key={asset}
+                  onClick={() => setAssetIndex(originalIndex)}
+                  title={asset}
+                />
+                )
+              })}
+              <button type="button" onClick={() => addAsset('空镜素材')}>+</button>
             </div>
           </div>
         </div>
       </section>
       <div className="render-row">
-        <span>Rendering Progress</span>
-        <div><i style={{ width: '0%' }} /></div>
-        <b>0%</b>
+        <span>{rendering ? '正在渲染' : rendered ? '渲染完成' : '渲染进度'}</span>
+        <div><i style={{ width: `${progress}%` }} /></div>
+        <b>{progress}%</b>
       </div>
       <div className="tool-modal-footer">
         <span />
-        <button type="button">Save Draft</button>
-        <button className="primary" type="button" onClick={() => setTopic(topic || '社区宣教视频')}>Generate & Render</button>
+        <button type="button" onClick={() => downloadText(`${topic}-video-script.txt`, script)}>保存脚本</button>
+        <button className="primary" type="button" onClick={startRender} disabled={rendering}>
+          {rendering ? '生成中...' : rendered ? '重新生成' : '生成并渲染'}
+        </button>
       </div>
     </>
   )
@@ -1929,6 +2146,7 @@ function MediaToolModal({
   setOutput,
   copyText,
   copied,
+  showToast,
 }: {
   topic: string
   setTopic: (topic: string) => void
@@ -1936,55 +2154,100 @@ function MediaToolModal({
   setOutput: (value: string) => void
   copyText: (key: string, text: string) => void
   copied: string
+  showToast: (message: string) => void
 }) {
+  const [tone, setTone] = useState('居民群版')
+  const [platform, setPlatform] = useState('公众号')
+  const [immediateRelease, setImmediateRelease] = useState(true)
+  const [syncPortal, setSyncPortal] = useState(false)
+  const [releaseStatus, setReleaseStatus] = useState('待编辑')
+  const [activeMarks, setActiveMarks] = useState<string[]>([])
+  const articleText = output || buildMediaDraft(topic, tone)
+
+  function applyTone(nextTone: string) {
+    setTone(nextTone)
+    setOutput(buildMediaDraft(topic, nextTone))
+    setReleaseStatus('待确认')
+  }
+
+  function polishArticle() {
+    setOutput(`${articleText}\n\n温馨提示：如需协助，可联系社区网格员或物业服务台。`)
+    setReleaseStatus('AI 已润色')
+    showToast('已生成更适合发布的版本')
+  }
+
+  function toggleMark(mark: string) {
+    setActiveMarks((current) => (current.includes(mark) ? current.filter((item) => item !== mark) : [...current, mark]))
+    if (mark === '清单') setOutput(`${articleText}\n\n发布前检查：\n1. 时间地点已确认\n2. 联系方式已确认\n3. 分发渠道已选择`)
+    if (mark === '链接') setOutput(`${articleText}\n\n详情链接：https://community.example/notice`)
+  }
+
+  function publishArticle() {
+    setReleaseStatus(immediateRelease ? '已模拟发布' : '已保存定时发布')
+    showToast(syncPortal ? '已发布并同步到区级门户' : '已完成新媒体发布留痕')
+  }
+
   return (
     <>
       <section className="media-modal-grid">
         <div className="media-editor">
           <div className="ai-polish-row">
-            <button type="button">One-click AI Polish</button>
-            <span>Selected content: 124 words</span>
+            <button type="button" onClick={polishArticle}>一键 AI 润色</button>
+            <span>当前字数：{articleText.length}</span>
           </div>
           <div className="tone-row">
-            {['Official Tone', 'Friendly Tone', 'Concise Version', 'AI Poster Tool'].map((item) => (
-              <button className={item === 'AI Poster Tool' ? 'selected' : ''} type="button" key={item}>{item}</button>
+            {['正式公告', '居民群版', '短信精简', '海报导语'].map((item) => (
+              <button className={item === tone ? 'selected' : ''} type="button" key={item} onClick={() => applyTone(item)}>{item}</button>
             ))}
           </div>
           <div className="editor-toolbar">
-            {['B', 'I', 'U', '≡', '•', '🔗'].map((item) => (
-              <button type="button" key={item}>{item}</button>
+            {['加粗', '斜体', '下划线', '小标题', '清单', '链接'].map((item) => (
+              <button className={activeMarks.includes(item) ? 'selected' : ''} type="button" key={item} onClick={() => toggleMark(item)}>{item}</button>
             ))}
           </div>
           <label>
             文章标题
             <input value={topic} onChange={(event) => setTopic(event.target.value)} />
           </label>
-          <textarea value={output} onChange={(event) => setOutput(event.target.value)} rows={9} />
+          <textarea
+            className={activeMarks.includes('加粗') ? 'editor-bold' : activeMarks.includes('斜体') ? 'editor-italic' : ''}
+            value={articleText}
+            onChange={(event) => {
+              setOutput(event.target.value)
+              setReleaseStatus('有未保存修改')
+            }}
+            rows={9}
+          />
           <div className="media-inline-image">
-            <span>Generated by AI Poster Tool</span>
+            <span>{tone} · AI 配图占位</span>
           </div>
         </div>
         <div className="platform-preview">
           <div className="preview-heading">
-            <span>Platform Preview</span>
-            <b>WeChat Official</b>
+            <span>平台预览</span>
+            <b>{releaseStatus}</b>
+          </div>
+          <div className="tone-row">
+            {['公众号', '居民群', '短信'].map((item) => (
+              <button className={item === platform ? 'selected' : ''} type="button" key={item} onClick={() => setPlatform(item)}>{item}</button>
+            ))}
           </div>
           <div className="wechat-phone">
             <div className="phone-top" />
-            <strong>{topic || 'Notice: Community Health & Wellness Seminar'}</strong>
-            <small>2023-10-18 · GridConnect Authority</small>
+            <strong>{topic || '社区健康与安全讲座'}</strong>
+            <small>今日 · 津智助理 · {platform}</small>
             <div className="phone-card-art" />
-            <p>{output.slice(0, 150)}...</p>
-            <em>Read More</em>
+            <p>{articleText.slice(0, platform === '短信' ? 70 : 150)}...</p>
+            <em>{platform === '短信' ? '短信预览' : '查看全文'}</em>
           </div>
         </div>
       </section>
       <div className="tool-modal-footer">
-        <label className="footer-check"><input type="checkbox" /> Immediate Release</label>
-        <label className="footer-check"><input type="checkbox" /> Sync to District Portal</label>
+        <label className="footer-check"><input type="checkbox" checked={immediateRelease} onChange={() => setImmediateRelease(!immediateRelease)} /> 立即发布</label>
+        <label className="footer-check"><input type="checkbox" checked={syncPortal} onChange={() => setSyncPortal(!syncPortal)} /> 同步区级门户</label>
         <span />
-        <button type="button" onClick={() => copyText('tool', output)}>{copied === 'tool' ? '已复制' : 'Save Draft'}</button>
-        <button className="primary" type="button">Publish to Official Account</button>
+        <button type="button" onClick={() => copyText('tool', articleText)}>{copied === 'tool' ? '已复制' : '保存草稿'}</button>
+        <button className="primary" type="button" onClick={publishArticle}>发布到{platform}</button>
       </div>
     </>
   )
@@ -1997,6 +2260,7 @@ function FlowToolModal({
   setOutput,
   copyText,
   copied,
+  showToast,
 }: {
   topic: string
   setTopic: (topic: string) => void
@@ -2004,25 +2268,122 @@ function FlowToolModal({
   setOutput: (value: string) => void
   copyText: (key: string, text: string) => void
   copied: string
+  showToast: (message: string) => void
 }) {
+  const [steps, setSteps] = useState([
+    { title: '居民诉求登记', detail: '通过统一入口核实居民信息' },
+    { title: 'AI 分类与紧急度判断', detail: '自动提取类别、风险点和建议部门' },
+    { title: '网格员人工复核', detail: '确认处置口径并补充现场情况' },
+    { title: '协同处置与通知', detail: '分派责任部门，同步居民提醒' },
+  ])
+  const [newTitle, setNewTitle] = useState('')
+  const [newDetail, setNewDetail] = useState('')
+  const [selectedStep, setSelectedStep] = useState(0)
+  const flowText = output || buildFlowOutput(topic, steps)
+
+  function syncFlow(nextSteps = steps) {
+    setOutput(buildFlowOutput(topic, nextSteps))
+  }
+
+  function addStep() {
+    if (!newTitle.trim()) {
+      showToast('请先填写步骤名称')
+      return
+    }
+    const nextSteps = [...steps, { title: newTitle.trim(), detail: newDetail.trim() || '待补充执行说明' }]
+    setSteps(nextSteps)
+    setSelectedStep(nextSteps.length - 1)
+    setNewTitle('')
+    setNewDetail('')
+    setOutput(buildFlowOutput(topic, nextSteps))
+  }
+
+  function moveStep(direction: -1 | 1) {
+    const targetIndex = selectedStep + direction
+    if (targetIndex < 0 || targetIndex >= steps.length) return
+    const nextSteps = [...steps]
+    const [current] = nextSteps.splice(selectedStep, 1)
+    nextSteps.splice(targetIndex, 0, current)
+    setSteps(nextSteps)
+    setSelectedStep(targetIndex)
+    setOutput(buildFlowOutput(topic, nextSteps))
+  }
+
+  function removeStep() {
+    if (steps.length <= 2) {
+      showToast('流程至少保留两个步骤')
+      return
+    }
+    const nextSteps = steps.filter((_, index) => index !== selectedStep)
+    setSteps(nextSteps)
+    setSelectedStep(Math.max(0, selectedStep - 1))
+    setOutput(buildFlowOutput(topic, nextSteps))
+  }
+
   return (
     <>
-      <label>
-        主题
-        <input value={topic} onChange={(event) => setTopic(event.target.value)} />
-      </label>
-      <ol className="flow-steps">
-        <li><strong>居民诉求登记</strong><span>通过统一入口核实居民信息</span></li>
-        <li><strong>服务清单提取</strong><span>自动整理需要协同的部门与材料</span></li>
-        <li><strong>相关机构协同</strong><span>等待区级审批确认中</span></li>
-      </ol>
-      <textarea value={output} onChange={(event) => setOutput(event.target.value)} rows={8} />
-      <div className="drawer-actions">
-        <button type="button" onClick={() => copyText('tool', output)}>
-          {copied === 'tool' ? '已复制' : '复制内容'}
+      <section className="flow-tool-grid">
+        <div className="tool-side-panel">
+          <label>
+            主题
+            <input
+              value={topic}
+              onChange={(event) => {
+                setTopic(event.target.value)
+                setOutput(buildFlowOutput(event.target.value, steps))
+              }}
+            />
+          </label>
+          <ol className="flow-steps">
+            {steps.map((step, index) => (
+              <li className={selectedStep === index ? 'selected' : ''} key={`${step.title}-${index}`}>
+                <button type="button" onClick={() => setSelectedStep(index)}>
+                  <strong>{step.title}</strong>
+                  <span>{step.detail}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+          <div className="flow-step-actions">
+            <button type="button" onClick={() => moveStep(-1)}>上移</button>
+            <button type="button" onClick={() => moveStep(1)}>下移</button>
+            <button type="button" onClick={removeStep}>删除</button>
+          </div>
+          <label>
+            新步骤名称
+            <input value={newTitle} onChange={(event) => setNewTitle(event.target.value)} placeholder="例如：现场照片回传" />
+          </label>
+          <label>
+            新步骤说明
+            <input value={newDetail} onChange={(event) => setNewDetail(event.target.value)} placeholder="补充负责人、材料或时限" />
+          </label>
+          <button className="primary-action" type="button" onClick={addStep}>添加步骤</button>
+        </div>
+        <div className="flow-preview-panel">
+          <PanelTitle title="流程预览" action="重新生成" onAction={() => syncFlow()} />
+          <div className="flow-node-track">
+            {steps.map((step, index) => (
+              <button
+                className={selectedStep === index ? 'selected' : ''}
+                type="button"
+                key={`${step.title}-node`}
+                onClick={() => setSelectedStep(index)}
+              >
+                <b>{index + 1}</b>
+                <strong>{step.title}</strong>
+              </button>
+            ))}
+          </div>
+          <textarea value={flowText} onChange={(event) => setOutput(event.target.value)} rows={8} />
+        </div>
+      </section>
+      <div className="tool-modal-footer">
+        <span />
+        <button type="button" onClick={() => copyText('tool', flowText)}>
+          {copied === 'tool' ? '已复制' : '复制流程'}
         </button>
-        <button className="primary" type="button" onClick={() => downloadText(`${topic}.txt`, output)}>
-          下载
+        <button className="primary" type="button" onClick={() => downloadText(`${topic}.txt`, flowText)}>
+          下载流程
         </button>
       </div>
     </>
@@ -2396,19 +2757,60 @@ function urgencyWeight(urgency: Urgency) {
   return urgency === '高紧急' ? 3 : urgency === '常规' ? 2 : 1
 }
 
-function analyzeImportedTicket(rawRow: string, index: number): Ticket {
+async function analyzeTicketText(text: string, index: number): Promise<{ ticket: Ticket; source: '云端模型' | '本地规则' }> {
+  try {
+    const response = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    })
+    if (!response.ok) throw new Error('Analyze API unavailable')
+    const result = (await response.json()) as ApiAnalysis
+    return { ticket: ticketFromAnalysis(text, result, index, '单条分析'), source: '云端模型' }
+  } catch {
+    return { ticket: buildLocalTicket(text, index, '单条分析'), source: '本地规则' }
+  }
+}
+
+async function generateNoticeDraft(topic: string, sourceTicket?: Ticket): Promise<{ notice: NoticeDraft; source: '云端模型' | '本地规则' }> {
+  try {
+    const response = await fetch('/api/notice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: topic,
+        analysis: sourceTicket ? { category: sourceTicket.category, summary: sourceTicket.summary } : undefined,
+      }),
+    })
+    if (!response.ok) throw new Error('Notice API unavailable')
+    const result = (await response.json()) as NoticeDraft
+    return { notice: normalizeNotice(result, topic), source: '云端模型' }
+  } catch {
+    return { notice: localNoticeDraft(topic, sourceTicket?.category), source: '本地规则' }
+  }
+}
+
+function ticketFromAnalysis(text: string, result: ApiAnalysis, index: number, source: string): Ticket {
+  return {
+    id: `#AI-${String(index).padStart(3, '0')}`,
+    location: inferLocation(text),
+    content: text,
+    category: result.category || classifyCategory(text),
+    urgency: normalizeUrgency(result.urgency),
+    emotion: result.emotion || classifyEmotion(text),
+    status: '待人工复核',
+    department: result.department || departmentForCategory(result.category),
+    summary: result.summary || `${result.category || classifyCategory(text)}类诉求，建议先核实现场情况并转交责任部门处理。`,
+    source,
+    createdAt: new Date().toLocaleString('zh-CN'),
+    review: '待复核',
+  }
+}
+
+function buildLocalTicket(rawRow: string, index: number, source: string): Ticket {
   const text = extractTicketText(rawRow)
   const category = classifyCategory(text)
   const urgency = classifyUrgency(text)
-  const emotion = /投诉|影响|烦|气|危险|隐患|故障|异味/.test(text) ? '不满' : '中性'
-  const departmentMap: Record<string, string> = {
-    市政设施: '工程维修组',
-    社会福利: '民生服务岗',
-    环境卫生: '物业保洁组',
-    设施报修: '工程维修组',
-    矛盾纠纷: '社区调解岗',
-    咨询服务: '综合服务窗口',
-  }
 
   return {
     id: `#IMP-${String(index).padStart(3, '0')}`,
@@ -2416,14 +2818,22 @@ function analyzeImportedTicket(rawRow: string, index: number): Ticket {
     content: text,
     category,
     urgency,
-    emotion,
+    emotion: classifyEmotion(text),
     status: '待人工复核',
-    department: departmentMap[category] || '综合服务窗口',
-    summary: `${category}类诉求，建议先核实现场情况，再转交${departmentMap[category] || '综合服务窗口'}处理。`,
-    source: '批量导入',
+    department: departmentForCategory(category),
+    summary: `${category}类诉求，建议先核实现场情况，再转交${departmentForCategory(category)}处理。`,
+    source,
     createdAt: new Date().toLocaleString('zh-CN'),
     review: '待复核',
   }
+}
+
+function parseTicketRows(text: string) {
+  return text
+    .split(/\r?\n/)
+    .map((row) => row.trim())
+    .filter(Boolean)
+    .filter((row, index) => index !== 0 || !/^id\s*,\s*text\s*,/i.test(row))
 }
 
 function extractTicketText(row: string) {
@@ -2432,7 +2842,52 @@ function extractTicketText(row: string) {
   return meaningful || row
 }
 
+function normalizeUrgency(urgency: ApiAnalysis['urgency']): Urgency {
+  if (urgency === '高' || urgency === '高紧急') return '高紧急'
+  if (urgency === '低') return '低'
+  return '常规'
+}
+
+function classifyEmotion(text: string) {
+  return /投诉|影响|烦|气|危险|隐患|故障|异味|受不了|没人管/.test(text) ? '不满' : '中性'
+}
+
+function departmentForCategory(category: string) {
+  const departmentMap: Record<string, string> = {
+    市政设施: '工程维修组',
+    社会福利: '民生服务岗',
+    环境卫生: '物业保洁组',
+    设施报修: '工程维修组',
+    设施维修: '工程维修组',
+    消防安全: '社区安全专员',
+    矛盾纠纷: '社区调解岗',
+    邻里纠纷: '社区调解岗',
+    咨询服务: '综合服务窗口',
+    秩序管理: '物业秩序组',
+    通知生成: '综合服务窗口',
+  }
+  return departmentMap[category] || '综合服务窗口'
+}
+
+function normalizeNotice(result: NoticeDraft, topic: string): NoticeDraft {
+  const fallbackNotice = localNoticeDraft(topic)
+  return {
+    formal: result.formal?.trim() || fallbackNotice.formal,
+    friendly: result.friendly?.trim() || fallbackNotice.friendly,
+    sms: result.sms?.trim() || fallbackNotice.sms,
+  }
+}
+
+function localNoticeDraft(topic: string, category = '社区治理'): NoticeDraft {
+  return {
+    formal: `各位居民：关于“${topic}”，社区将结合近期${category}类事项开展提醒、巡查与协同处置。请大家主动配合社区及物业工作，共同维护安全、有序、整洁的居住环境。`,
+    friendly: `邻居们大家好，最近社区在关注“${topic}”。如果大家发现类似问题，可以及时联系网格员，我们会尽快协调处理，也请大家互相提醒、一起配合。`,
+    sms: `社区提醒：${topic}。如遇相关问题请联系网格员或物业，感谢理解与配合。`,
+  }
+}
+
 function classifyCategory(text: string) {
+  if (/消防|通道|电动车|充电|易燃|私拉电线/.test(text)) return '消防安全'
   if (/垃圾|保洁|异味|卫生|堆积/.test(text)) return '环境卫生'
   if (/电梯|照明|水管|供暖|维修|故障|路灯|设施/.test(text)) return '设施报修'
   if (/老人|长者|饭堂|补贴|困难|帮扶/.test(text)) return '社会福利'
@@ -2488,6 +2943,8 @@ function escapeCsv(value: string) {
 function buildWeeklyReport(tickets: Ticket[], accuracy: number) {
   const urgent = tickets.filter((ticket) => ticket.urgency === '高紧急').length
   const pending = tickets.filter((ticket) => ticket.status !== '已归档').length
+  const reviewed = tickets.filter((ticket) => ticket.review && ticket.review !== '待复核').length
+  const accuracyText = reviewed > 0 ? `AI 分类复核准确率当前为 ${accuracy}%` : 'AI 分类复核准确率尚未形成，需先完成样例人工复核'
   const topCategories = Array.from(
     tickets.reduce((map, ticket) => map.set(ticket.category, (map.get(ticket.category) || 0) + 1), new Map<string, number>()),
   )
@@ -2496,7 +2953,35 @@ function buildWeeklyReport(tickets: Ticket[], accuracy: number) {
     .map(([category, count]) => `${category}${count}件`)
     .join('、')
 
-  return `本周共预处理居民诉求 ${tickets.length} 件，其中高紧急事件 ${urgent} 件，待继续跟进 ${pending} 件。AI 分类复核准确率当前为 ${accuracy}%。高频问题集中在 ${topCategories || '暂无分类数据'}。建议下周优先复核高紧急工单、补充真实脱敏样例，并对重复出现的问题形成专项巡查清单。`
+  return `本周共预处理居民诉求 ${tickets.length} 件，其中高紧急事件 ${urgent} 件，待继续跟进 ${pending} 件。${accuracyText}。高频问题集中在 ${topCategories || '暂无分类数据'}。建议下周优先复核高紧急工单、补充真实脱敏样例，并对重复出现的问题形成专项巡查清单。`
+}
+
+function buildPosterDraft(topic: string, style: string) {
+  const prefix = style === '温和邻里' ? '邻居们请留意' : style === '极简提示' ? '社区提示' : '社区公告'
+  return `${prefix}：${topic}。请居民关注社区通知，合理安排生活与出行；如发现相关情况，请及时联系网格员或物业服务台。`
+}
+
+function buildVideoScript(topic: string) {
+  return `片头：社区实景与公告栏画面，字幕显示“${topic}”。\n旁白：居民朋友们好，这里是津智助理。今天提醒大家关注${topic}相关安排。\n分镜一：展示问题场景和正确做法。\n分镜二：补充联系方式和反馈入口。\n片尾：请大家互相转告，共同维护安全、有序、整洁的社区环境。`
+}
+
+function buildMediaDraft(topic: string, tone: string) {
+  if (tone === '短信精简') return `社区提醒：${topic}。请居民留意现场安排，如需协助请联系网格员或物业服务台。`
+  if (tone === '海报导语') return `${topic}\n\n一句话导语：把社区提醒讲清楚，把办理路径说具体。`
+  if (tone === '正式公告') {
+    return `各位居民：\n\n关于“${topic}”，社区将根据近期工作安排开展提醒、巡查与协同处置。请大家关注社区公告，配合现场工作人员安排，共同维护安全、有序、整洁的生活环境。\n\n如遇相关问题，请及时联系社区网格员或物业服务台。`
+  }
+  return `邻居们大家好：\n\n最近社区在关注“${topic}”。如果您发现相关情况，可以及时联系网格员或物业，我们会尽快协调处理。也请大家互相提醒，一起把社区环境维护好。`
+}
+
+function buildFlowOutput(topic: string, steps: Array<{ title: string; detail: string }>) {
+  return [
+    `${topic}流程`,
+    '',
+    ...steps.map((step, index) => `${index + 1}. ${step.title}：${step.detail}`),
+    '',
+    `流程图代码：flowchart LR ${steps.map((step, index) => `S${index + 1}["${step.title}"]`).join(' --> ')}`,
+  ].join('\n')
 }
 
 function readJson<T>(key: string, fallback: T): T {

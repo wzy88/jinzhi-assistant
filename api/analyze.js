@@ -29,17 +29,17 @@ export default async function handler(req, res) {
 }
 
 async function callDashScope(text) {
-  const apiKey = process.env.DASHSCOPE_API_KEY
-  if (!apiKey) throw new Error('Missing DASHSCOPE_API_KEY')
+  const { provider, apiKey, model, url } = getModelConfig()
+  if (!apiKey) throw new Error(`Missing ${provider === 'deepseek' ? 'DEEPSEEK_API_KEY' : 'DASHSCOPE_API_KEY'}`)
 
-  const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: process.env.DASHSCOPE_MODEL || 'qwen-plus',
+      model,
       temperature: 0.2,
       messages: [
         {
@@ -130,4 +130,23 @@ function localAnalysis(text) {
   }
 
   return fallback
+}
+
+function getModelConfig() {
+  const provider = String(process.env.MODEL_PROVIDER || '').toLowerCase()
+  if (provider === 'deepseek' || process.env.DEEPSEEK_API_KEY) {
+    return {
+      provider: 'deepseek',
+      apiKey: process.env.DEEPSEEK_API_KEY || '',
+      model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+      url: 'https://api.deepseek.com/chat/completions',
+    }
+  }
+
+  return {
+    provider: 'dashscope',
+    apiKey: process.env.DASHSCOPE_API_KEY || '',
+    model: process.env.DASHSCOPE_MODEL || 'qwen-plus',
+    url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+  }
 }
