@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#e1e3e4",
+                        "on-tertiary-container": "#f69c4d",
+                        "on-secondary-fixed": "#001f28",
+                        "on-error": "#ffffff",
+                        "outline": "#737781",
+                        "surface-bright": "#f8f9fa",
+                        "primary-fixed": "#d7e3ff",
+                        "on-tertiary-fixed": "#2f1500",
+                        "on-tertiary": "#ffffff",
+                        "inverse-primary": "#abc7ff",
+                        "on-primary": "#ffffff",
+                        "surface-variant": "#e1e3e4",
+                        "surface-container-high": "#e7e8e9",
+                        "primary-fixed-dim": "#abc7ff",
+                        "on-surface": "#191c1d",
+                        "tertiary-fixed-dim": "#ffb77d",
+                        "tertiary-container": "#6a3700",
+                        "surface-dim": "#d9dadb",
+                        "on-secondary": "#ffffff",
+                        "primary": "#002c60",
+                        "on-secondary-fixed-variant": "#004e60",
+                        "primary-container": "#1b437d",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed": "#001b3f",
+                        "on-primary-fixed-variant": "#1f4680",
+                        "background": "#f8f9fa",
+                        "surface-tint": "#3a5e9a",
+                        "error": "#ba1a1a",
+                        "surface-container-low": "#f3f4f5",
+                        "secondary-fixed": "#b5ebff",
+                        "on-background": "#191c1d",
+                        "tertiary-fixed": "#ffdcc3",
+                        "surface": "#f8f9fa",
+                        "inverse-on-surface": "#f0f1f2",
+                        "on-tertiary-fixed-variant": "#6e3900",
+                        "on-secondary-container": "#005c71",
+                        "tertiary": "#492400",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#8fb1f3",
+                        "surface-container": "#edeeef",
+                        "secondary-fixed-dim": "#58d5fb",
+                        "secondary-container": "#5bd8fe",
+                        "secondary": "#00677e",
+                        "on-surface-variant": "#434750",
+                        "error-container": "#ffdad6",
+                        "outline-variant": "#c3c6d1",
+                        "inverse-surface": "#2e3132"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "base": "4px",
+                        "lg": "24px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "margin-mobile": "16px",
+                        "gutter": "16px",
+                        "margin-desktop": "48px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "title-lg": ["notoSans"],
+                        "headline-md": ["notoSans"],
+                        "body-md": ["notoSans"],
+                        "headline-lg": ["notoSans"],
+                        "label-md": ["notoSans"],
+                        "headline-lg-mobile": ["notoSans"],
+                        "display-lg": ["notoSans"],
+                        "body-lg": ["notoSans"]
+                    },
+                    "fontSize": {
+                        "title-lg": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "headline-md": ["22px", {"lineHeight": "30px", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "headline-lg": ["28px", {"lineHeight": "36px", "fontWeight": "600"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "display-lg": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        body { font-family: 'notoSans', sans-serif; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .ai-shimmer {
+            background: linear-gradient(90deg, transparent, rgba(91, 216, 254, 0.2), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 3s infinite linear;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface overflow-x-hidden">
+<!-- SideNavBar (Authority: JSON) -->
+<aside class="fixed left-0 top-0 h-screen w-[280px] bg-surface dark:bg-inverse-surface border-r border-outline-variant dark:border-outline flex flex-col h-full py-lg px-md z-50">
+<div class="flex items-center gap-sm mb-xl">
+<img alt="GridConnect Logo" class="w-10 h-10 object-contain" src="https://lh3.googleusercontent.com/aida/ADBb0ugWGbs8cMklxxR5W2QuyK4G3YNjn4Dkqg3sE3W9MFl6sYIGDDBl57n6oIofp84A2-pw-Ju4veiCkzWlerqr6b3NnBfMVKuqZLeKs-c0VwpOFCNt87fnkp6cMEPufmCkv0YRRCWbeXRGAI5JccB9zvNSXePlz70yfibO2_mh9RmDPdKbI3zjC-1q6JVnBV-Xl5GSzGM_hDBSwL18gdu5W4KiESrOOP0Uxd5_WeOkVvBN6QykWB0XqH0ibA"/>
+<div>
+<h1 class="text-title-lg font-title-lg font-bold text-primary dark:text-primary-fixed-dim">GridConnect</h1>
+<p class="text-label-md font-label-md text-on-surface-variant">District Authority</p>
+</div>
+</div>
+<nav class="flex-1 space-y-base">
+<a class="flex items-center gap-md p-md rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-md p-md rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">confirmation_number</span>
+                Tickets
+            </a>
+<a class="flex items-center gap-md p-md rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">campaign</span>
+                Notices
+            </a>
+<a class="flex items-center gap-md p-md rounded-lg text-primary dark:text-primary-fixed-dim font-bold border-r-4 border-primary dark:border-primary-fixed-dim bg-primary-container/10 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">analytics</span>
+                Toolkit
+            </a>
+</nav>
+<div class="mt-auto pt-lg space-y-base">
+<button class="w-full bg-primary text-on-primary py-md px-lg rounded-lg font-title-lg text-title-lg mb-lg hover:opacity-90 transition-opacity">
+                New Notice
+            </button>
+<a class="flex items-center gap-md p-md rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">settings</span>
+                Settings
+            </a>
+<a class="flex items-center gap-md p-md rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">help_outline</span>
+                Help
+            </a>
+</div>
+</aside>
+<!-- TopAppBar (Authority: JSON) -->
+<header class="flex justify-between items-center w-full h-16 px-lg ml-[280px] w-[calc(100%-280px)] bg-surface-bright dark:bg-inverse-surface border-b border-outline-variant dark:border-outline sticky top-0 z-40">
+<div class="flex items-center gap-lg">
+<span class="text-headline-md font-headline-md font-black text-primary dark:text-primary-fixed-dim">GridConnect AI</span>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-md flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline">search</span>
+</div>
+<input class="bg-surface-container border-none rounded-full py-base pl-xl pr-md w-64 focus:ring-2 focus:ring-primary transition-all text-body-md" placeholder="Search toolkit..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full p-2">
+<span class="material-symbols-outlined text-primary">notifications</span>
+</button>
+<button class="hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full p-2">
+<span class="material-symbols-outlined text-primary">history</span>
+</button>
+<div class="flex items-center gap-sm ml-md bg-surface-container rounded-full pr-md pl-xs py-xs cursor-pointer">
+<span class="material-symbols-outlined text-primary text-3xl">account_circle</span>
+<span class="text-label-md font-bold">Community Worker</span>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-[280px] p-lg min-h-screen">
+<!-- Header Section -->
+<header class="mb-xl flex justify-between items-end">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-primary mb-xs">AI Creative Toolkit</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">Empowering community governance with professional creative assets. Convert administrative tasks into engaging community communications instantly.</p>
+</div>
+<div class="flex gap-md">
+<button class="flex items-center gap-sm px-lg py-md border border-primary text-primary rounded-lg font-label-md hover:bg-primary-container/10 transition-colors">
+<span class="material-symbols-outlined">auto_fix</span>
+                    AI Training Status
+                </button>
+</div>
+</header>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-lg">
+<!-- 1. AI Poster Generator (Large Featured) -->
+<section class="col-span-12 lg:col-span-7 bg-surface-container-lowest border border-outline-variant rounded-xl p-lg flex flex-col">
+<div class="flex justify-between items-center mb-lg">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">palette</span>
+<h3 class="font-title-lg text-title-lg">AI Poster Generator</h3>
+</div>
+<div class="flex gap-xs">
+<span class="px-md py-xs bg-surface-container-high text-label-md rounded-full">Safety</span>
+<span class="px-md py-xs bg-surface-container-high text-label-md rounded-full">Health</span>
+<span class="px-md py-xs bg-primary-container/20 text-primary text-label-md rounded-full border border-primary/20">Welfare</span>
+</div>
+</div>
+<div class="flex gap-lg flex-1">
+<div class="w-1/2 space-y-md">
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant">Source Ticket / Text</label>
+<textarea class="w-full h-32 bg-surface-bright border border-outline-variant rounded-lg p-md text-body-md focus:ring-primary" placeholder="Enter community announcement or ticket description here...">Notice: Due to seasonal maintenance, we urge all residents of District 4 to prioritize water conservation from March 1st-5th. Our AI has detected a 15% drop in reservoir levels.</textarea>
+</div>
+<div class="grid grid-cols-2 gap-sm">
+<button class="w-full py-md bg-primary text-on-primary rounded-lg font-label-md flex justify-center items-center gap-sm">
+<span class="material-symbols-outlined">auto_awesome</span>
+                                Generate Poster
+                            </button>
+<button class="w-full py-md border border-outline text-on-surface rounded-lg font-label-md">
+                                Customize Style
+                            </button>
+</div>
+</div>
+<div class="w-1/2 bg-surface-dim rounded-lg relative overflow-hidden group">
+<div class="absolute inset-0 flex flex-col items-center justify-center p-xl bg-gradient-to-br from-secondary/5 to-primary/10">
+<!-- Water Saving Poster Mockup -->
+<div class="w-full aspect-[3/4] bg-white shadow-xl rounded-sm p-lg flex flex-col relative">
+<div class="absolute top-0 right-0 w-24 h-24 bg-secondary-container/30 rounded-bl-full"></div>
+<h4 class="text-primary font-display-lg text-2xl text-center mt-lg mb-base">珍惜水资源</h4>
+<p class="text-secondary text-center font-label-md border-b border-secondary/20 pb-md mb-md">WATER CONSERVATION 2024</p>
+<img class="w-full h-32 object-cover rounded-lg mb-md" data-alt="A minimalist and artistic representation of a single crystalline water droplet falling onto a calm turquoise water surface, creating gentle ripples. The lighting is bright and high-key, emphasizing purity and conservation. The overall aesthetic is clean, professional, and corporate, following a light-mode design language with deep blue and cyan accents." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAwsJRGN50Cf6C0G7IdcwcOrt7qe4gcvyQE3SySip4hM_hWx7g11ARQstgCB_-1pYVfSn-ZdpiWnbTgXGzXJL95gBN0cSVFKfOmQqhsnPOixIoP-Z69abIt5bgW4Dv__yb43KNFjH-F3UIoXJZ65RsW548GS4z7IQUMxyqO8IvJU0fH0bobxdx66CtPVeYrhJZpmdjuxyQty0SfLECnf_5F0HYAZcRTG3Ps0jfUhz8rV4mCZqwX1e0A2nDARcII9RiC1eoAoMzmLg"/>
+<p class="text-body-md text-on-surface-variant text-center leading-tight">由于供水系统维护，3月1日至5日请各位居民节约用水，共同守护社区资源。</p>
+<div class="mt-auto flex justify-between items-end">
+<div class="w-12 h-12 bg-surface-container rounded-sm flex items-center justify-center">
+<span class="material-symbols-outlined text-outline">qr_code_2</span>
+</div>
+<p class="text-[10px] text-outline text-right">津智助理 AI 生成<br/>社区治理中心</p>
+</div>
+</div>
+</div>
+<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-md">
+<button class="bg-white text-primary p-md rounded-full shadow-lg"><span class="material-symbols-outlined">download</span></button>
+<button class="bg-white text-primary p-md rounded-full shadow-lg"><span class="material-symbols-outlined">share</span></button>
+</div>
+</div>
+</div>
+</section>
+<!-- 2. Process Infographic Tool (Tall Side) -->
+<section class="col-span-12 lg:col-span-5 bg-surface-container-lowest border border-outline-variant rounded-xl p-lg flex flex-col">
+<div class="flex items-center gap-sm mb-lg">
+<span class="material-symbols-outlined text-tertiary" style="font-variation-settings: 'FILL' 1;">account_tree</span>
+<h3 class="font-title-lg text-title-lg">Process Infographic</h3>
+</div>
+<div class="bg-surface-bright border border-outline-variant rounded-lg p-md flex-1 space-y-lg overflow-y-auto">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-bold">1</div>
+<div class="flex-1">
+<p class="font-label-md text-primary">Resident Identity Check</p>
+<p class="text-label-md text-on-surface-variant">Verify resident information via the national ID system.</p>
+</div>
+</div>
+<div class="w-0.5 h-8 bg-outline-variant ml-5"></div>
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-bold">2</div>
+<div class="flex-1">
+<p class="font-label-md text-primary">Service Request Submission</p>
+<p class="text-label-md text-on-surface-variant">Complete the digital form in the community portal.</p>
+</div>
+</div>
+<div class="w-0.5 h-8 bg-outline-variant ml-5"></div>
+<div class="flex items-center gap-md opacity-40">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant font-bold">3</div>
+<div class="flex-1">
+<p class="font-label-md">Authority Review</p>
+<p class="text-label-md">Pending district-level verification.</p>
+</div>
+</div>
+</div>
+<div class="mt-lg pt-lg border-t border-outline-variant">
+<div class="flex items-center gap-sm p-md bg-secondary-container/10 rounded-lg border border-secondary/20">
+<span class="material-symbols-outlined text-secondary">info</span>
+<p class="text-label-md text-on-secondary-container">AI has simplified a 5-step legal document into 3 visual steps.</p>
+</div>
+<button class="w-full mt-md py-md bg-secondary text-on-secondary rounded-lg font-label-md">Generate Visualization</button>
+</div>
+</section>
+<!-- 3. Social Media Publisher (Wide Bottom) -->
+<section class="col-span-12 lg:col-span-8 bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
+<div class="flex justify-between items-center mb-lg">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">share_windows</span>
+<h3 class="font-title-lg text-title-lg">Social Media Publisher</h3>
+</div>
+<div class="flex items-center gap-md">
+<span class="flex items-center gap-xs text-label-md text-on-surface-variant">
+<span class="w-2 h-2 rounded-full bg-green-500"></span> WeChat Connected
+                        </span>
+</div>
+</div>
+<div class="flex gap-lg">
+<div class="flex-1 space-y-md">
+<div class="flex gap-base border-b border-outline-variant pb-base">
+<button class="p-xs hover:bg-surface-container rounded"><span class="material-symbols-outlined">format_bold</span></button>
+<button class="p-xs hover:bg-surface-container rounded"><span class="material-symbols-outlined">format_italic</span></button>
+<button class="p-xs hover:bg-surface-container rounded"><span class="material-symbols-outlined">format_list_bulleted</span></button>
+<div class="w-px h-6 bg-outline-variant mx-xs"></div>
+<button class="px-md py-xs bg-primary-container/10 text-primary rounded-full text-label-md font-bold flex items-center gap-xs">
+<span class="material-symbols-outlined text-sm">auto_fix</span>
+                                AI Rewrite
+                            </button>
+</div>
+<div class="h-48 w-full bg-surface-bright rounded-lg p-md text-body-md outline-none overflow-y-auto" contenteditable="true">
+<h2 class="font-bold text-lg mb-md text-primary">温馨提示：春季社区安全防范指南</h2>
+<p class="mb-md">各位居民朋友们，随着春季到来，气温逐渐回升，为了确保大家的居家安全，社区治理中心特别整理了以下几点建议...</p>
+<p>1. 注意用电安全：定期检查插座与电线...<br/>2. 保持通风：春季流感高发...</p>
+</div>
+</div>
+<div class="w-64">
+<div class="aspect-[9/16] bg-black rounded-[32px] p-2 relative overflow-hidden border-4 border-black">
+<div class="bg-white h-full rounded-[28px] overflow-hidden flex flex-col">
+<div class="bg-[#ededed] h-6 w-full flex items-center justify-center">
+<div class="w-12 h-1 bg-gray-300 rounded-full"></div>
+</div>
+<div class="p-md">
+<div class="w-full h-24 bg-surface-dim rounded-lg mb-sm"></div>
+<div class="h-3 w-3/4 bg-surface-container-highest rounded mb-xs"></div>
+<div class="h-3 w-1/2 bg-surface-container-highest rounded mb-md"></div>
+<div class="space-y-xs">
+<div class="h-2 w-full bg-surface-container rounded"></div>
+<div class="h-2 w-full bg-surface-container rounded"></div>
+<div class="h-2 w-2/3 bg-surface-container rounded"></div>
+</div>
+</div>
+<div class="mt-auto p-md border-t border-outline-variant flex justify-between items-center bg-[#f7f7f7]">
+<span class="text-[10px] text-outline">WeChat Official Account</span>
+<span class="material-symbols-outlined text-outline text-sm">more_horiz</span>
+</div>
+</div>
+</div>
+<button class="w-full mt-md py-md bg-primary text-on-primary rounded-lg font-label-md">Publish to Official Account</button>
+</div>
+</div>
+</section>
+<!-- 4. AI Education Video Creator (Small Bottom) -->
+<section class="col-span-12 lg:col-span-4 bg-surface-container-lowest border border-outline-variant rounded-xl p-lg flex flex-col">
+<div class="flex items-center gap-sm mb-lg">
+<span class="material-symbols-outlined text-on-tertiary-container" style="font-variation-settings: 'FILL' 1;">movie</span>
+<h3 class="font-title-lg text-title-lg">AI Education Video</h3>
+</div>
+<div class="flex-1 space-y-md">
+<div class="p-md bg-primary-container/5 rounded-lg border border-primary/10">
+<p class="font-label-md text-primary mb-xs">Digital Human Script</p>
+<div class="text-body-md italic text-on-surface-variant border-l-2 border-primary/30 pl-md">
+                            "Hello residents! I'm your digital community assistant. Today, let's learn how to sort kitchen waste effectively..."
+                        </div>
+</div>
+<div class="grid grid-cols-2 gap-sm">
+<div class="aspect-video bg-surface-container rounded-lg border-2 border-dashed border-outline-variant flex flex-col items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-outline">add_circle</span>
+<span class="text-[10px] text-outline">Upload Footage</span>
+</div>
+<div class="aspect-video bg-surface-dim rounded-lg overflow-hidden relative">
+<img class="w-full h-full object-cover opacity-60" data-alt="A futuristic and professional high-definition portrait of a realistic digital human avatar, smiling warmly with a trustworthy and friendly expression. The avatar is set against a blurred background representing a modern, sunlit community park. The lighting is soft and ambient, characteristic of a high-end corporate presentation. The overall visual style is clean, sharp, and authoritative yet welcoming." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBOg1ktU-yF2NV7MViwY8Pzw__DfsqmuHUrqfFnTkqfPAMbyh7YLFMDu2AWWGeHKXhlqnHggwV0-DJTwF759G4hMI7vpcJIDHF4_mwqKleekx9TuD7NVKSOPF97F5Geva-aBSY8IVp2Je1Qx1yUzGfFq6-riXTi85TuEMlKTGV3wf_zRj8hl9QSmMAbsQIygmT3UUrRqpPvxYwQZaP6IWx1HLK6TaAyyFC3Rd_5bJPNk6pMq3Ig_tiBBgHXrnz6ukD_0Xdoh3Xi-Q"/>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary bg-primary/80 rounded-full p-xs">play_arrow</span>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-lg flex flex-col gap-sm">
+<div class="flex justify-between items-center text-label-md">
+<span class="text-on-surface-variant">Voice: Female (Friendly)</span>
+<span class="text-primary cursor-pointer">Change</span>
+</div>
+<button class="w-full py-md bg-on-tertiary-container text-white rounded-lg font-label-md hover:bg-on-tertiary-fixed-variant transition-colors">
+                        Generate Video
+                    </button>
+</div>
+</section>
+</div>
+<!-- AI Assistant persistent Widget -->
+<div class="fixed bottom-lg right-lg w-72 glass-panel border border-primary/20 shadow-xl rounded-xl p-md z-50">
+<div class="flex items-center gap-sm mb-md">
+<div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary text-sm">smart_toy</span>
+</div>
+<div>
+<p class="font-label-md text-primary font-bold">Jinzhi Assistant</p>
+<p class="text-[10px] text-on-surface-variant leading-none">Ready to create</p>
+</div>
+</div>
+<p class="text-body-md mb-md">"I see you're drafting a safety notice. Would you like me to suggest some relevant poster templates?"</p>
+<div class="flex gap-sm">
+<button class="flex-1 py-xs bg-primary text-on-primary rounded text-label-md">Yes, please</button>
+<button class="flex-1 py-xs border border-outline rounded text-label-md">Maybe later</button>
+</div>
+</div>
+</main>
+<script>
+        // Micro-interactions for the AI Toolkit
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('mousedown', () => {
+                button.classList.add('opacity-80');
+            });
+            button.addEventListener('mouseup', () => {
+                button.classList.remove('opacity-80');
+            });
+        });
+
+        // Hover effects for the poster mockup
+        const posterContainer = document.querySelector('.bg-surface-dim.rounded-lg');
+        if(posterContainer) {
+            posterContainer.addEventListener('mouseenter', () => {
+                posterContainer.querySelector('div').classList.add('scale-105');
+                posterContainer.querySelector('div').style.transition = 'transform 0.5s ease-out';
+            });
+            posterContainer.addEventListener('mouseleave', () => {
+                posterContainer.querySelector('div').classList.remove('scale-105');
+            });
+        }
+    </script>
+</body></html>

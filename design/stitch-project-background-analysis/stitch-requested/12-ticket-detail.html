@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Ticket Intelligence Detail - GridConnect AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "inverse-on-surface": "#f0f1f2",
+                    "surface-bright": "#f8f9fa",
+                    "outline-variant": "#c3c6d1",
+                    "on-error": "#ffffff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-surface-variant": "#434750",
+                    "on-secondary-fixed-variant": "#004e60",
+                    "on-primary-container": "#8fb1f3",
+                    "error": "#ba1a1a",
+                    "surface-tint": "#3a5e9a",
+                    "on-primary-fixed-variant": "#1f4680",
+                    "on-primary": "#ffffff",
+                    "surface-container-high": "#e7e8e9",
+                    "secondary-fixed": "#b5ebff",
+                    "on-error-container": "#93000a",
+                    "inverse-surface": "#2e3132",
+                    "on-tertiary-fixed-variant": "#6e3900",
+                    "on-secondary-fixed": "#001f28",
+                    "on-tertiary": "#ffffff",
+                    "surface": "#f8f9fa",
+                    "primary": "#002c60",
+                    "outline": "#737781",
+                    "on-tertiary-container": "#f69c4d",
+                    "surface-dim": "#d9dadb",
+                    "tertiary-fixed": "#ffdcc3",
+                    "on-tertiary-fixed": "#2f1500",
+                    "on-background": "#191c1d",
+                    "primary-fixed-dim": "#abc7ff",
+                    "surface-container": "#edeeef",
+                    "tertiary-container": "#6a3700",
+                    "error-container": "#ffdad6",
+                    "primary-fixed": "#d7e3ff",
+                    "tertiary-fixed-dim": "#ffb77d",
+                    "on-primary-fixed": "#001b3f",
+                    "secondary-fixed-dim": "#58d5fb",
+                    "secondary-container": "#5bd8fe",
+                    "surface-container-highest": "#e1e3e4",
+                    "inverse-primary": "#abc7ff",
+                    "surface-variant": "#e1e3e4",
+                    "on-secondary-container": "#005c71",
+                    "secondary": "#00677e",
+                    "on-surface": "#191c1d",
+                    "background": "#f8f9fa",
+                    "surface-container-low": "#f3f4f5",
+                    "on-secondary": "#ffffff",
+                    "tertiary": "#492400",
+                    "primary-container": "#1b437d"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "xs": "4px",
+                    "margin-mobile": "16px",
+                    "gutter": "16px",
+                    "md": "16px",
+                    "lg": "24px",
+                    "sm": "8px",
+                    "xl": "32px",
+                    "base": "4px",
+                    "margin-desktop": "48px"
+            },
+            "fontFamily": {
+                    "label-md": ["Noto Sans"],
+                    "headline-md": ["Noto Sans"],
+                    "body-md": ["Noto Sans"],
+                    "headline-lg": ["Noto Sans"],
+                    "body-lg": ["Noto Sans"],
+                    "title-lg": ["Noto Sans"],
+                    "display-lg": ["Noto Sans"]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body { font-family: 'Noto Sans', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .ai-glow {
+            box-shadow: 0 0 15px rgba(91, 216, 254, 0.3);
+            border: 1px solid rgba(91, 216, 254, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface">
+<!-- Screen Background (Mocking SCREEN_3) -->
+<div class="fixed inset-0 z-0 opacity-40 pointer-events-none grayscale">
+<header class="flex justify-between items-center px-lg h-16 bg-surface border-b border-outline-variant">
+<span class="font-title-lg text-title-lg font-bold text-primary">GridConnect AI</span>
+<div class="flex gap-md">
+<span class="material-symbols-outlined">notifications</span>
+<span class="material-symbols-outlined">help_outline</span>
+</div>
+</header>
+<div class="p-lg">
+<h1 class="font-headline-lg text-headline-lg mb-lg">Ticket Pre-processing Center</h1>
+<div class="grid grid-cols-3 gap-lg">
+<div class="h-40 bg-white border border-outline-variant rounded-lg"></div>
+<div class="h-40 bg-white border border-outline-variant rounded-lg"></div>
+<div class="h-40 bg-white border border-outline-variant rounded-lg"></div>
+</div>
+</div>
+</div>
+<!-- Modal Overlay -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-on-background/40 backdrop-blur-sm p-md" id="modal-overlay">
+<!-- Modal Container -->
+<div class="bg-white w-full max-w-5xl max-h-[921px] overflow-hidden flex flex-col rounded-xl shadow-2xl relative">
+<!-- Modal Header -->
+<header class="flex justify-between items-center px-lg py-md border-b border-outline-variant bg-surface-container-lowest">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary" data-icon="confirmation_number">confirmation_number</span>
+<h2 class="font-title-lg text-title-lg text-primary">Ticket Intelligence Detail</h2>
+</div>
+<button class="hover:bg-surface-container-highest p-base rounded-full transition-colors" onclick="window.history.back()">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="close">close</span>
+</button>
+</header>
+<!-- Modal Content Layout -->
+<div class="flex-1 overflow-y-auto flex flex-col md:flex-row">
+<!-- Left Section: Ticket Content -->
+<div class="flex-1 p-lg border-r border-outline-variant space-y-xl">
+<section>
+<div class="flex justify-between items-start mb-md">
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant">TICKET ID</p>
+<h3 class="font-title-lg text-title-lg font-bold">#GC-2023-8842</h3>
+</div>
+<span class="px-md py-xs bg-error-container text-on-error-container rounded-full font-label-md text-label-md">Open • High Priority</span>
+</div>
+<div class="grid grid-cols-2 gap-lg p-md bg-surface-container-low rounded-lg border border-outline-variant/30">
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant">Resident Name</p>
+<p class="font-body-md text-body-md font-semibold">Mr. Lin Wei</p>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant">Contact</p>
+<p class="font-body-md text-body-md">+86 138-0022-XXXX</p>
+</div>
+<div class="col-span-2">
+<p class="font-label-md text-label-md text-on-surface-variant">Address</p>
+<p class="font-body-md text-body-md">Building 4, Apartment 302, Jing'an District</p>
+</div>
+</div>
+</section>
+<section class="space-y-sm">
+<h4 class="font-title-lg text-title-lg">Issue Description</h4>
+<div class="p-lg bg-surface-container-lowest border border-outline-variant rounded-lg">
+<p class="font-body-lg text-body-lg leading-relaxed text-on-surface italic">
+                                "The main water pipe in the hallway has burst and water is flooding into my living room. I've called the emergency line three times but no one has answered. This is completely unacceptable! My carpets are ruined and the water is getting near the electrical outlets. Someone needs to get here NOW before this becomes even more dangerous!"
+                            </p>
+</div>
+</section>
+<section class="grid grid-cols-2 gap-md">
+<img class="w-full h-32 object-cover rounded-lg border border-outline-variant" data-alt="A detailed professional photograph of a burst indoor plumbing pipe spraying water onto a tiled floor. The scene is illuminated by dim, moody lighting, highlighting the chaotic and urgent nature of the plumbing emergency. The overall aesthetic is a clean, modern documentary style with a focus on high-fidelity textures of water droplets and metallic surfaces." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCI-TILfyC_Bbs3E7BJ53qhudd9hzGkOG_nwH3gMHnfPA89qqUmmLJtshdVKNYDgm_CltUH_pYd2ZOfE0KjDtop8QvAcFk_rT0RnKxl23o1KvxtmJd7bsB78p2CQA55zl9sVEG4ANPohHs4h81CI2OYIw5krnb5NcI73G1uZyAYOfFY0_ZOcCKG_Ptd1FV5M85JX6QXlObHss0cDrS2QVipXj3kuDvH86kEAZ_9HHvDukYSDybpApCAoAIK0ROqrn5Zm82M7zasng"/>
+<img class="w-full h-32 object-cover rounded-lg border border-outline-variant" data-alt="A wide angle photograph of a modern apartment hallway with water pooled on the floor, reflecting soft ambient light from ceiling fixtures. The composition emphasizes the scale of the flooding damage, with a clean corporate photography style that conveys a sense of serious infrastructure failure. The color palette is dominated by cool grays and blues, creating a professional yet somber atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDc9DldvVRHOx02qg8PNGjBGvguLvybKLDam2iFlq9-T8aRNBXhpB9v012k42JVqmKSmc9Wq3_9luAQjvZJorUDExzpmq3UJpagRcMQnYyAn3kbfriZv1Lmm1n0iWSPXx7DCrkDrWXy5jvDnfWxIl0jyKQe7WDvxIu52gnfkJLi8ED2adh0cSaWASWXjUIlz56rKvYkbgo7QTyOLL0HHtOAAKzTOixpjLJ4Z1XQ8TZmPPmCkDWIU1TpDwGq0-o2tttPdE1GxS3smA"/>
+</section>
+</div>
+<!-- Right Section: AI Insights -->
+<div class="w-full md:w-[380px] bg-surface-container-low p-lg flex flex-col gap-lg overflow-y-auto">
+<div class="flex items-center gap-sm pb-md border-b border-outline-variant">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">psychology</span>
+<h4 class="font-title-lg text-title-lg text-secondary">AI Intelligence Analysis</h4>
+</div>
+<!-- Insight Cards -->
+<div class="space-y-md">
+<!-- Emotion -->
+<div class="bg-white p-md rounded-lg border border-outline-variant ai-glow">
+<div class="flex justify-between items-center mb-xs">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Emotion Analysis</span>
+<span class="material-symbols-outlined text-tertiary-container" data-icon="mood_bad">mood_bad</span>
+</div>
+<div class="flex flex-wrap gap-xs">
+<span class="px-sm py-xs bg-error-container text-on-error-container rounded font-label-md text-label-md font-bold">Anxious</span>
+<span class="px-sm py-xs bg-error-container text-on-error-container rounded font-label-md text-label-md font-bold">Angry</span>
+</div>
+<p class="mt-sm font-body-md text-body-md text-on-surface-variant italic">High urgency language and repetitive punctuation detected.</p>
+</div>
+<!-- Category -->
+<div class="bg-white p-md rounded-lg border border-outline-variant">
+<div class="flex justify-between items-center mb-xs">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Category Identification</span>
+<span class="material-symbols-outlined text-primary" data-icon="category">category</span>
+</div>
+<p class="font-title-lg text-title-lg font-bold text-primary">Infrastructure Damage</p>
+<p class="font-body-md text-body-md text-on-surface-variant">Keywords: Burst pipe, flooding, electrical outlets.</p>
+</div>
+<!-- Priority -->
+<div class="bg-white p-md rounded-lg border border-outline-variant">
+<div class="flex justify-between items-center mb-xs">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Priority Level</span>
+<span class="material-symbols-outlined text-error" data-icon="priority_high">priority_high</span>
+</div>
+<div class="flex items-center gap-sm">
+<div class="w-full bg-surface-container-highest h-2 rounded-full overflow-hidden">
+<div class="bg-error w-[95%] h-full"></div>
+</div>
+<span class="font-body-md text-body-md font-bold text-error">95%</span>
+</div>
+<p class="mt-xs font-label-md text-label-md text-on-surface-variant font-bold uppercase">Urgent Intervention Required</p>
+</div>
+</div>
+<!-- Suggested Actions -->
+<div class="mt-auto space-y-sm">
+<button class="w-full bg-primary text-on-primary py-md px-lg rounded-lg font-title-lg text-title-lg flex items-center justify-center gap-sm hover:opacity-90 active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="send">send</span>
+                            Dispatch to Maintenance Team
+                        </button>
+<button class="w-full border-2 border-primary text-primary py-md px-lg rounded-lg font-title-lg text-title-lg flex items-center justify-center gap-sm hover:bg-primary-fixed transition-colors">
+<span class="material-symbols-outlined" data-icon="edit_note">edit_note</span>
+                            Generate Resident Notice
+                        </button>
+</div>
+</div>
+</div>
+<!-- AI Chat Assistant Panel (Floating Style within Modal) -->
+<div class="absolute bottom-6 right-6 w-80 bg-primary-container text-on-primary-container rounded-xl shadow-xl overflow-hidden border border-on-primary-container/20 flex flex-col transition-transform duration-300 transform" id="ai-assistant">
+<div class="bg-primary px-md py-sm flex justify-between items-center cursor-pointer" onclick="toggleChat()">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-secondary-container" data-icon="smart_toy" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+<span class="font-label-md text-label-md font-bold tracking-tight">Jinzhi Assistant</span>
+</div>
+<span class="material-symbols-outlined text-on-primary" id="chat-chevron">expand_more</span>
+</div>
+<div class="p-md space-y-md" id="chat-content">
+<div class="bg-white/10 p-sm rounded-lg">
+<p class="font-body-md text-body-md leading-snug">
+                            I've flagged this as <strong>Urgent</strong> because the flooding is near electrical outlets, creating a critical safety hazard. Would you like me to draft a reassuring response to Mr. Lin Wei?
+                        </p>
+</div>
+<div class="flex gap-sm">
+<button class="flex-1 bg-on-primary-container text-primary-container py-xs px-sm rounded-md font-label-md text-label-md font-bold hover:bg-white transition-colors">Draft Reply</button>
+<button class="flex-1 bg-white/10 border border-white/20 py-xs px-sm rounded-md font-label-md text-label-md hover:bg-white/20 transition-colors">Explain Logic</button>
+</div>
+<div class="relative">
+<input class="w-full bg-white/20 border-none rounded-lg py-xs px-sm pr-10 text-white placeholder-white/60 focus:ring-1 focus:ring-secondary-container" placeholder="Ask Jinzhi..." type="text"/>
+<span class="material-symbols-outlined absolute right-2 top-1.5 text-secondary-container text-lg" data-icon="send">send</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+        function toggleChat() {
+            const content = document.getElementById('chat-content');
+            const chevron = document.getElementById('chat-chevron');
+            const assistant = document.getElementById('ai-assistant');
+            
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                chevron.textContent = 'expand_more';
+                assistant.style.transform = 'translateY(0)';
+            } else {
+                content.classList.add('hidden');
+                chevron.textContent = 'expand_less';
+                // Adjust transform slightly when collapsed
+            }
+        }
+
+        // Close modal on escape key
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                window.history.back();
+            }
+        });
+    </script>
+</body></html>
