@@ -90,12 +90,22 @@ type PublishRecord = {
   time: string
 }
 
+type FeedbackRecord = {
+  id: string
+  name: string
+  role: string
+  rating: number
+  comment: string
+  time: string
+}
+
 type SettingsState = {
   autoSummary: boolean
   emotionAlert: boolean
   dialectMode: boolean
   twoFactor: boolean
   retainLocalRecords: boolean
+  showDemoData: boolean
 }
 
 const ticketsSeed: Ticket[] = [
@@ -177,12 +187,13 @@ const defaultSettings: SettingsState = {
   dialectMode: true,
   twoFactor: false,
   retainLocalRecords: true,
+  showDemoData: true,
 }
 
 function App() {
   const [isSignedIn, setIsSignedIn] = useState(() => readJson('jinzhi-auth', false))
   const [activeView, setActiveView] = useState<ViewKey>('overview')
-  const [tickets, setTickets] = useState<Ticket[]>(() => readJson('jinzhi-tickets', ticketsSeed))
+  const [tickets, setTickets] = useState<Ticket[]>(readInitialTickets)
   const [selectedTicketId, setSelectedTicketId] = useState(ticketsSeed[0].id)
   const [drawer, setDrawer] = useState<DrawerKey>(null)
   const [noticeTopic, setNoticeTopic] = useState('春季社区安全防范指南')
@@ -200,7 +211,8 @@ function App() {
     { id: 'NT-1023', title: '周日停水提醒', channels: ['工作群', '社区群'], audience: '12号楼至15号楼', status: '待确认', time: '昨日 16:45' },
     { id: 'NT-1022', title: '电梯检修通知', channels: ['社区群'], audience: '幸福小区2号楼', status: '草稿', time: '周三 14:10' },
   ])
-  const [settings, setSettings] = useState<SettingsState>(() => readJson('jinzhi-settings', defaultSettings))
+  const [settings, setSettings] = useState<SettingsState>(readSettings)
+  const [feedbackRecords, setFeedbackRecords] = useState<FeedbackRecord[]>(() => readJson('jinzhi-feedback', []))
   const [role, setRole] = useState<UserRole>(() => readJson('jinzhi-role', '管理员' as UserRole))
   const [toast, setToast] = useState('')
   const modalOpen = drawer !== null
@@ -332,6 +344,15 @@ function App() {
     return nextTickets
   }
 
+  function persistTicketsForSettings(nextTickets: Ticket[], nextSettings: SettingsState) {
+    if (nextSettings.retainLocalRecords) {
+      persistJson('jinzhi-tickets', nextTickets)
+    } else {
+      window.localStorage.removeItem('jinzhi-tickets')
+    }
+    return nextTickets
+  }
+
   function toggleChannel(channel: NoticeChannel) {
     setSelectedChannels((current) =>
       current.includes(channel) ? current.filter((item) => item !== channel) : [...current, channel],
@@ -388,9 +409,19 @@ function App() {
   }
 
   function exportReport() {
-    const weeklyReport = buildWeeklyReport(tickets, accuracy)
+    const weeklyReport = buildWeeklyReport(tickets, accuracy, feedbackRecords)
     downloadText('jinzhi-weekly-report.txt', weeklyReport)
     showToast('试点报告草稿已生成')
+  }
+
+  function exportEvaluation() {
+    downloadText('jinzhi-evaluation.csv', evaluationToCsv(tickets))
+    showToast('评测明细 CSV 已生成')
+  }
+
+  function exportFeedback() {
+    downloadText('jinzhi-uat-feedback.csv', feedbackToCsv(feedbackRecords))
+    showToast('试用反馈 CSV 已生成')
   }
 
   async function importTickets(file: File) {
@@ -411,7 +442,36 @@ function App() {
     const updated = { ...settings, ...next }
     setSettings(updated)
     persistJson('jinzhi-settings', updated)
+    if (typeof next.showDemoData === 'boolean') {
+      setTickets((current) => {
+        const hasDemoTickets = current.some((ticket) => isDemoTicket(ticket.id))
+        const withoutDemoTickets = current.filter((ticket) => !isDemoTicket(ticket.id))
+        const nextTickets = next.showDemoData
+          ? hasDemoTickets
+            ? current
+            : [...ticketsSeed, ...current]
+          : withoutDemoTickets
+        if (nextTickets[0] && !nextTickets.some((ticket) => ticket.id === selectedTicketId)) {
+          setSelectedTicketId(nextTickets[0].id)
+        }
+        return persistTicketsForSettings(nextTickets, updated)
+      })
+    }
     if (!updated.retainLocalRecords) window.localStorage.removeItem('jinzhi-tickets')
+  }
+
+  function addFeedback(record: Omit<FeedbackRecord, 'id' | 'time'>) {
+    const nextRecord: FeedbackRecord = {
+      ...record,
+      id: `FB-${String(feedbackRecords.length + 1).padStart(3, '0')}`,
+      time: new Date().toLocaleString('zh-CN'),
+    }
+    setFeedbackRecords((current) => {
+      const updated = [nextRecord, ...current].slice(0, 30)
+      persistJson('jinzhi-feedback', updated)
+      return updated
+    })
+    showToast('已记录试用反馈')
   }
 
   function switchRole() {
@@ -485,7 +545,19 @@ function App() {
           />
         )}
         {activeView === 'toolbox' && <Toolbox openTool={openTool} />}
-        {activeView === 'analysis' && <PilotAnalysis tickets={tickets} accuracy={accuracy} exportReport={exportReport} copyText={copyText} copied={copied} />}
+        {activeView === 'analysis' && (
+          <PilotAnalysis
+            tickets={tickets}
+            accuracy={accuracy}
+            feedbackRecords={feedbackRecords}
+            addFeedback={addFeedback}
+            exportFeedback={exportFeedback}
+            exportEvaluation={exportEvaluation}
+            exportReport={exportReport}
+            copyText={copyText}
+            copied={copied}
+          />
+        )}
         {activeView === 'settings' && (
           <SettingsView
             onLogout={logout}
@@ -1400,36 +1472,103 @@ function ToolboxCard({
 function PilotAnalysis({
   tickets,
   accuracy,
+  feedbackRecords,
+  addFeedback,
+  exportFeedback,
+  exportEvaluation,
   exportReport,
   copyText,
   copied,
 }: {
   tickets: Ticket[]
   accuracy: number
+  feedbackRecords: FeedbackRecord[]
+  addFeedback: (record: Omit<FeedbackRecord, 'id' | 'time'>) => void
+  exportFeedback: () => void
+  exportEvaluation: () => void
   exportReport: () => void
   copyText: (key: string, text: string) => void
   copied: string
 }) {
-  const report = buildWeeklyReport(tickets, accuracy)
+  const [feedbackName, setFeedbackName] = useState('')
+  const [feedbackRole, setFeedbackRole] = useState('网格员')
+  const [feedbackRating, setFeedbackRating] = useState(5)
+  const [feedbackComment, setFeedbackComment] = useState('')
+  const report = buildWeeklyReport(tickets, accuracy, feedbackRecords)
+  const evaluation = getEvaluationSummary(tickets)
+  const trendValues = buildAccuracyTrend(accuracy, evaluation.reviewed)
+  const averageRating =
+    feedbackRecords.length > 0
+      ? (feedbackRecords.reduce((sum, item) => sum + item.rating, 0) / feedbackRecords.length).toFixed(1)
+      : '待收集'
+
+  function submitFeedback() {
+    if (!feedbackName.trim() || !feedbackComment.trim()) return
+    addFeedback({
+      name: feedbackName.trim(),
+      role: feedbackRole,
+      rating: feedbackRating,
+      comment: feedbackComment.trim(),
+    })
+    setFeedbackName('')
+    setFeedbackRole('网格员')
+    setFeedbackRating(5)
+    setFeedbackComment('')
+  }
+
   return (
     <>
       <PageHeader
         title="试点分析"
-        subtitle="社区治理试点运行数据、AI 准确率和高频问题趋势。"
-        action={
+        subtitle="社区治理试点运行数据、人工复核证据、试用反馈和高频问题趋势。"
+        action={<div className="header-actions">
+          <button type="button" onClick={exportEvaluation}>导出评测 CSV</button>
           <button className="primary" type="button" onClick={exportReport}>
             <FileDown size={16} />
             导出报告
           </button>
-        }
+        </div>}
       />
       <section className="analysis-grid">
+        <div className="panel evaluation-panel">
+          <PanelTitle title="复核评测闭环" action="导出明细" onAction={exportEvaluation} />
+          <div className="evaluation-metrics">
+            <StatInline label="已复核" value={evaluation.reviewed} />
+            <StatInline label="复核正确" value={evaluation.correct} />
+            <StatInline label="需调整" value={evaluation.adjusted} />
+            <StatInline label="待复核" value={evaluation.unreviewed} />
+          </div>
+          <p>
+            当前准确率只按人工点击“复核正确 / 需调整”的样本计算；未复核样本不计入分母，避免演示数据虚高。
+          </p>
+        </div>
+        <div className="panel uat-summary-panel">
+          <PanelTitle title="试用反馈证据" action="导出反馈" onAction={exportFeedback} />
+          <div className="feedback-score">
+            <strong>{averageRating}</strong>
+            <span>{feedbackRecords.length > 0 ? `来自 ${feedbackRecords.length} 条试用记录` : '等待社区人员试用后填写'}</span>
+          </div>
+          <div className="feedback-list">
+            {feedbackRecords.slice(0, 2).map((item) => (
+              <article key={item.id}>
+                <strong>{item.name} · {item.role}</strong>
+                <span>{item.time} · {item.rating} 分</span>
+                <p>{item.comment}</p>
+              </article>
+            ))}
+            {feedbackRecords.length === 0 && <div className="empty-row compact">暂无试用反馈</div>}
+          </div>
+        </div>
         <div className="panel">
           <PanelTitle title="准确率趋势" />
           <div className="line-chart">
-            {[42, 56, 48, 70, 76, 88, 82].map((height, index) => (
-              <i style={{ height: `${height}%` }} key={index} />
-            ))}
+            {trendValues.length > 0 ? (
+              trendValues.map((height, index) => (
+                <i style={{ height: `${height}%` }} key={index} />
+              ))
+            ) : (
+              <div className="chart-empty">完成工单人工复核后生成趋势</div>
+            )}
           </div>
         </div>
         <div className="panel">
@@ -1440,6 +1579,37 @@ function PilotAnalysis({
               <b>{item.current}</b>
             </div>
           ))}
+        </div>
+        <div className="panel feedback-form-panel">
+          <PanelTitle title="试用反馈记录" />
+          <div className="feedback-form">
+            <label>
+              试用者
+              <input value={feedbackName} onChange={(event) => setFeedbackName(event.target.value)} placeholder="例如：李老师" />
+            </label>
+            <label>
+              角色
+              <select value={feedbackRole} onChange={(event) => setFeedbackRole(event.target.value)}>
+                <option>网格员</option>
+                <option>物业客服</option>
+                <option>社区负责人</option>
+                <option>高校后勤</option>
+              </select>
+            </label>
+            <label>
+              评分
+              <select value={feedbackRating} onChange={(event) => setFeedbackRating(Number(event.target.value))}>
+                {[5, 4, 3, 2, 1].map((score) => <option key={score} value={score}>{score} 分</option>)}
+              </select>
+            </label>
+            <label className="feedback-comment">
+              反馈与卡点
+              <textarea value={feedbackComment} onChange={(event) => setFeedbackComment(event.target.value)} placeholder="记录能否独立完成、哪一步卡住、哪些字段不可信。" rows={5} />
+            </label>
+            <button className="primary-action" type="button" onClick={submitFeedback} disabled={!feedbackName.trim() || !feedbackComment.trim()}>
+              记录反馈
+            </button>
+          </div>
         </div>
         <div className="panel report-panel">
           <PanelTitle title="周报草稿" action={copied === 'weekly' ? '已复制' : '复制周报'} onAction={() => copyText('weekly', report)} />
@@ -1528,6 +1698,13 @@ function SettingsView({
             enabled={settings.retainLocalRecords}
             onToggle={() => updateSettings({ retainLocalRecords: !settings.retainLocalRecords })}
             icon={<Database size={18} />}
+          />
+          <Preference
+            title="显示演示样例数据"
+            desc={settings.showDemoData ? '打开时自动展示内置样例，适合比赛演示。' : '关闭后只显示导入或分析生成的真实脱敏记录。'}
+            enabled={settings.showDemoData}
+            onToggle={() => updateSettings({ showDemoData: !settings.showDemoData })}
+            icon={<ClipboardList size={18} />}
           />
         </div>
         <div className="danger-panel">
@@ -2936,15 +3113,64 @@ function ticketsToCsv(tickets: Ticket[]) {
   return [header.join(','), ...rows].join('\n')
 }
 
+function evaluationToCsv(tickets: Ticket[]) {
+  const header = ['id', 'category', 'urgency', 'department', 'review', 'status', 'source', 'summary']
+  const rows = tickets.map((ticket) =>
+    [
+      ticket.id,
+      ticket.category,
+      ticket.urgency,
+      ticket.department,
+      ticket.review || '待复核',
+      ticket.status,
+      ticket.source || '演示样例',
+      ticket.summary,
+    ].map(escapeCsv).join(','),
+  )
+  return [header.join(','), ...rows].join('\n')
+}
+
+function feedbackToCsv(records: FeedbackRecord[]) {
+  const header = ['id', 'name', 'role', 'rating', 'comment', 'time']
+  const rows = records.map((record) =>
+    [record.id, record.name, record.role, String(record.rating), record.comment, record.time].map(escapeCsv).join(','),
+  )
+  return [header.join(','), ...rows].join('\n')
+}
+
 function escapeCsv(value: string) {
   return `"${value.replace(/"/g, '""')}"`
 }
 
-function buildWeeklyReport(tickets: Ticket[], accuracy: number) {
+function getEvaluationSummary(tickets: Ticket[]) {
+  const reviewed = tickets.filter((ticket) => ticket.review && ticket.review !== '待复核')
+  const correct = reviewed.filter((ticket) => ticket.review === '正确').length
+  const adjusted = reviewed.filter((ticket) => ticket.review === '需调整').length
+  const unreviewed = tickets.length - reviewed.length
+  return {
+    reviewed: reviewed.length,
+    correct,
+    adjusted,
+    unreviewed,
+  }
+}
+
+function buildAccuracyTrend(accuracy: number, reviewedCount: number) {
+  if (reviewedCount === 0) return []
+  const baseline = Math.max(24, accuracy - 24)
+  return [baseline, baseline + 8, Math.max(baseline + 4, accuracy - 16), accuracy - 8, accuracy]
+    .map((value) => Math.max(16, Math.min(100, value)))
+}
+
+function buildWeeklyReport(tickets: Ticket[], accuracy: number, feedbackRecords: FeedbackRecord[] = []) {
   const urgent = tickets.filter((ticket) => ticket.urgency === '高紧急').length
   const pending = tickets.filter((ticket) => ticket.status !== '已归档').length
   const reviewed = tickets.filter((ticket) => ticket.review && ticket.review !== '待复核').length
   const accuracyText = reviewed > 0 ? `AI 分类复核准确率当前为 ${accuracy}%` : 'AI 分类复核准确率尚未形成，需先完成样例人工复核'
+  const feedbackText =
+    feedbackRecords.length > 0
+      ? `已收集 ${feedbackRecords.length} 条试用反馈，平均评分 ${(feedbackRecords.reduce((sum, item) => sum + item.rating, 0) / feedbackRecords.length).toFixed(1)} 分`
+      : '尚未收集试用反馈，建议安排至少 1-3 位社区/物业人员完成 UAT'
   const topCategories = Array.from(
     tickets.reduce((map, ticket) => map.set(ticket.category, (map.get(ticket.category) || 0) + 1), new Map<string, number>()),
   )
@@ -2953,7 +3179,7 @@ function buildWeeklyReport(tickets: Ticket[], accuracy: number) {
     .map(([category, count]) => `${category}${count}件`)
     .join('、')
 
-  return `本周共预处理居民诉求 ${tickets.length} 件，其中高紧急事件 ${urgent} 件，待继续跟进 ${pending} 件。${accuracyText}。高频问题集中在 ${topCategories || '暂无分类数据'}。建议下周优先复核高紧急工单、补充真实脱敏样例，并对重复出现的问题形成专项巡查清单。`
+  return `本周共预处理居民诉求 ${tickets.length} 件，其中高紧急事件 ${urgent} 件，待继续跟进 ${pending} 件。${accuracyText}。${feedbackText}。高频问题集中在 ${topCategories || '暂无分类数据'}。建议下周优先复核高紧急工单、补充真实脱敏样例，并对重复出现的问题形成专项巡查清单。`
 }
 
 function buildPosterDraft(topic: string, style: string) {
@@ -2991,6 +3217,24 @@ function readJson<T>(key: string, fallback: T): T {
   } catch {
     return fallback
   }
+}
+
+function readSettings(): SettingsState {
+  return { ...defaultSettings, ...readJson('jinzhi-settings', defaultSettings) }
+}
+
+function readInitialTickets() {
+  try {
+    const storedTickets = window.localStorage.getItem('jinzhi-tickets')
+    if (storedTickets) return JSON.parse(storedTickets) as Ticket[]
+    return readSettings().showDemoData ? ticketsSeed : []
+  } catch {
+    return ticketsSeed
+  }
+}
+
+function isDemoTicket(id: string) {
+  return ticketsSeed.some((ticket) => ticket.id === id)
 }
 
 function persistJson<T>(key: string, value: T) {

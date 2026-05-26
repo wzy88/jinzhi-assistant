@@ -31,6 +31,7 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -46,6 +47,7 @@ button:disabled {
 }
 
 input,
+select,
 textarea {
   width: 100%;
   border: 1px solid var(--line);
@@ -56,6 +58,11 @@ textarea {
 }
 
 input {
+  height: 40px;
+  padding: 0 12px;
+}
+
+select {
   height: 40px;
   padding: 0 12px;
 }
@@ -76,6 +83,7 @@ label {
 }
 
 input:focus,
+select:focus,
 textarea:focus {
   border-color: var(--gov-blue-3);
   box-shadow: 0 0 0 3px rgba(27, 67, 125, 0.12);
@@ -1729,6 +1737,95 @@ textarea:focus {
   gap: 18px;
 }
 
+.evaluation-panel,
+.uat-summary-panel,
+.feedback-form-panel {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.evaluation-panel {
+  grid-column: 1;
+}
+
+.uat-summary-panel {
+  grid-column: 2;
+}
+
+.evaluation-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.evaluation-panel p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.feedback-score {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 8px;
+  color: var(--gov-blue);
+  background: #eaf1ff;
+}
+
+.feedback-score strong {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.feedback-score span,
+.feedback-list span,
+.feedback-list p {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.feedback-list {
+  display: grid;
+  gap: 10px;
+}
+
+.feedback-list article {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.feedback-list p {
+  margin: 0;
+}
+
+.empty-row.compact {
+  padding: 18px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.feedback-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.feedback-comment {
+  grid-column: 1 / -1;
+}
+
+.feedback-form .primary-action {
+  grid-column: 1 / -1;
+  width: max-content;
+}
+
 .report-panel {
   grid-column: 1 / -1;
 }
@@ -1750,6 +1847,18 @@ textarea:focus {
   min-height: 24px;
   border-radius: 999px 999px 0 0;
   background: linear-gradient(180deg, var(--ai-blue), var(--gov-blue-2));
+}
+
+.chart-empty {
+  grid-column: 1 / -1;
+  align-self: center;
+  justify-self: center;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 16px 18px;
+  color: var(--muted);
+  background: var(--surface-soft);
+  font-weight: 750;
 }
 
 .rank-row {
@@ -3211,7 +3320,10 @@ textarea:focus {
   .danger-panel,
   .profile-panel,
   .ai-preferences,
-  .privacy-panel {
+  .privacy-panel,
+  .evaluation-panel,
+  .uat-summary-panel,
+  .feedback-form-panel {
     grid-column: auto;
     grid-row: auto;
   }
@@ -3343,6 +3455,8 @@ textarea:focus {
   .filter-option-grid,
   .filter-fields,
   .intake-panel,
+  .evaluation-metrics,
+  .feedback-form,
   .poster-modal-grid,
   .video-modal-grid,
   .media-modal-grid,

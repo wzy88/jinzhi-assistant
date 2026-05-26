@@ -32,3 +32,30 @@ test('toolbox modal copy is Chinese and interactive', async ({ page }) => {
   await page.getByRole('button', { name: '手机长图' }).click()
   await expect(page.getByText('预览尺寸：手机长图')).toBeVisible()
 })
+
+test('demo data can be hidden for real trial records', async ({ page }) => {
+  await signIn(page)
+  await page.getByRole('button', { name: '设置' }).click()
+  await page.getByRole('button', { name: /显示演示样例数据/ }).click()
+
+  await page.getByRole('button', { name: '工单中心' }).click()
+  await expect(page.getByText('当前筛选下暂无工单')).toBeVisible()
+
+  await page.getByPlaceholder('例如：12号楼消防通道被电动车占用').fill('北门消防通道被电动车占用，晚上通行不安全。')
+  await page.getByRole('button', { name: '智能分析并入库' }).click()
+  await expect(page.locator('.ticket-modal').getByText('消防安全')).toBeVisible()
+})
+
+test('pilot analysis captures UAT feedback evidence', async ({ page }) => {
+  await signIn(page)
+  await page.getByRole('button', { name: '试点分析' }).click()
+
+  await page.getByLabel('试用者').fill('李老师')
+  await page.getByLabel('角色').selectOption('网格员')
+  await page.getByLabel('评分').selectOption('4')
+  await page.getByLabel('反馈与卡点').fill('能独立完成工单复核，通知发布前希望再明确责任部门。')
+  await page.getByRole('button', { name: '记录反馈' }).click()
+
+  await expect(page.getByText('李老师 · 网格员')).toBeVisible()
+  await expect(page.getByText('来自 1 条试用记录')).toBeVisible()
+})
