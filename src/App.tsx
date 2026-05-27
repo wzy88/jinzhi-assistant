@@ -196,6 +196,7 @@ function App() {
   const [tickets, setTickets] = useState<Ticket[]>(readInitialTickets)
   const [selectedTicketId, setSelectedTicketId] = useState(ticketsSeed[0].id)
   const [drawer, setDrawer] = useState<DrawerKey>(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const [noticeTopic, setNoticeTopic] = useState('春季社区安全防范指南')
   const [notice, setNotice] = useState<NoticeDraft>(defaultNotice)
   const [toolOutput, setToolOutput] = useState('')
@@ -233,10 +234,14 @@ function App() {
   )
 
   const visibleTickets = useMemo(() => {
-    if (ticketFilter === '高紧急度') return sortedTickets.filter((ticket) => ticket.urgency === '高紧急')
-    if (ticketFilter === '待审核') return sortedTickets.filter((ticket) => ticket.status === '待人工复核')
-    return sortedTickets
-  }, [sortedTickets, ticketFilter])
+    const filteredByStatus =
+      ticketFilter === '高紧急度'
+        ? sortedTickets.filter((ticket) => ticket.urgency === '高紧急')
+        : ticketFilter === '待审核'
+          ? sortedTickets.filter((ticket) => ticket.status === '待人工复核')
+          : sortedTickets
+    return filteredByStatus.filter((ticket) => ticketMatchesSearch(ticket, searchQuery))
+  }, [sortedTickets, ticketFilter, searchQuery])
 
   useEffect(() => {
     if (!modalOpen) return
@@ -261,6 +266,17 @@ function App() {
       document.body.style.width = previous.width
       window.scrollTo(0, scrollY)
     }
+  }, [modalOpen])
+
+  useEffect(() => {
+    if (!modalOpen) return undefined
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setDrawer(null)
+    }
+
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
   }, [modalOpen])
 
   function showToast(message: string) {
@@ -487,8 +503,10 @@ function App() {
       await navigator.clipboard.writeText(text)
       setCopied(key)
       window.setTimeout(() => setCopied(''), 1500)
+      showToast('已复制到剪贴板')
     } catch {
       setCopied('')
+      showToast('浏览器限制了剪贴板，请手动复制文本')
     }
   }
 
@@ -498,10 +516,20 @@ function App() {
 
   return (
     <main className="gc-shell">
+      <a className="skip-link" href="#main-content">跳到主要内容</a>
       <Sidebar activeView={activeView} setActiveView={setActiveView} onLogout={logout} />
-      <TopBar activeView={activeView} />
+      <TopBar
+        activeView={activeView}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onNotify={() => showToast('暂无新的系统消息')}
+        onRefresh={() => {
+          setSearchQuery('')
+          showToast('已刷新当前视图')
+        }}
+      />
 
-      <section className="gc-main">
+      <section className="gc-main" id="main-content">
         {activeView === 'overview' && (
           <Overview
             pendingCount={pendingCount}
@@ -535,6 +563,7 @@ function App() {
             applySuggestion={applySuggestion}
             openAdvancedFilter={() => setDrawer('advancedFilter')}
             openHotspotReport={() => setDrawer('hotspot')}
+            searchQuery={searchQuery}
           />
         )}
         {activeView === 'notice' && (
@@ -638,6 +667,13 @@ function App() {
             setDrawer(null)
             setActiveView('tickets')
           }}
+          openNotice={() => {
+            setDrawer(null)
+            setActiveView('notice')
+          }}
+          openReport={() => {
+            setDrawer('hotspot')
+          }}
         />
       )}
       {drawer === 'advancedFilter' && (
@@ -672,6 +708,8 @@ function App() {
 }
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  const [codeSent, setCodeSent] = useState(false)
+
   return (
     <main className="login-screen">
       <section className="login-panel">
@@ -681,13 +719,13 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           </div>
           <div>
             <strong>津智助理</strong>
-            <span>社区治理智脑</span>
+            <span>天津社区治理智脑</span>
           </div>
         </div>
         <div>
-          <p className="eyebrow">演示登录</p>
+          <p className="eyebrow">首届 AIGC 应用创新大赛 · 演示登录</p>
           <h1>进入 AI 工单预处理中心</h1>
-          <p>手机号与验证码仅用于演示。点击登录后直接进入区级管理端。</p>
+          <p>面向街道、社区与物业协同的可信工作台。点击登录后直接进入区级管理端。</p>
         </div>
         <label>
           手机号
@@ -697,13 +735,21 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           验证码
           <div className="inline-field">
             <input value="246810" readOnly />
-            <button type="button">获取验证码</button>
+            <button type="button" onClick={() => setCodeSent(true)}>
+              {codeSent ? '已发送' : '获取验证码'}
+            </button>
           </div>
         </label>
+        {codeSent && <p className="login-inline-status">演示验证码已填入，可直接进入工作台。</p>}
         <button className="primary-action" type="button" onClick={onLogin}>
           <LogIn size={18} />
           进入工作台
         </button>
+        <div className="login-proof-row">
+          <span>本地脱敏</span>
+          <span>人工复核</span>
+          <span>发布留痕</span>
+        </div>
       </section>
     </main>
   )
@@ -727,7 +773,7 @@ function Sidebar({
           </div>
           <div>
             <strong>津智助理</strong>
-            <span>社区治理智脑</span>
+            <span>天津社区治理智脑</span>
           </div>
         </div>
         <nav className="side-nav" aria-label="主导航">
@@ -766,12 +812,28 @@ function Sidebar({
             <LogOut size={16} />
           </button>
         </div>
+        <div className="trust-strip">
+          <ShieldCheck size={15} />
+          演示数据仅本地保留
+        </div>
       </div>
     </aside>
   )
 }
 
-function TopBar({ activeView }: { activeView: ViewKey }) {
+function TopBar({
+  activeView,
+  searchQuery,
+  setSearchQuery,
+  onNotify,
+  onRefresh,
+}: {
+  activeView: ViewKey
+  searchQuery: string
+  setSearchQuery: (value: string) => void
+  onNotify: () => void
+  onRefresh: () => void
+}) {
   const placeholder: Record<ViewKey, string> = {
     overview: '搜索工单、通知或数据...',
     tickets: '搜索工单、关键词或处理人...',
@@ -786,17 +848,27 @@ function TopBar({ activeView }: { activeView: ViewKey }) {
     <header className="gc-topbar">
       <div className="search-box">
         <Search size={18} />
-        <span>{placeholder[activeView]}</span>
+        <input
+          aria-label="全局搜索"
+          placeholder={placeholder[activeView]}
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+        />
+        {searchQuery && (
+          <button type="button" onClick={() => setSearchQuery('')} aria-label="清空搜索">
+            <X size={15} />
+          </button>
+        )}
       </div>
       <div className="top-actions">
-        <button type="button" aria-label="消息">
+        <button type="button" aria-label="消息" onClick={onNotify}>
           <Bell size={18} />
           <i />
         </button>
-        <button type="button" aria-label="刷新">
+        <button type="button" aria-label="刷新" onClick={onRefresh}>
           <RefreshCcw size={18} />
         </button>
-        <span className="engine-pill">AI 引擎已就绪</span>
+        <span className="engine-pill">本地兜底 / 云端可接入</span>
       </div>
     </header>
   )
@@ -846,14 +918,23 @@ function Overview({
   exportReport: () => void
   goTickets: () => void
 }) {
+  const periods = ['过去 7 天', '过去 30 天', '本季度'] as const
+  const [period, setPeriod] = useState<(typeof periods)[number]>('过去 30 天')
+
   return (
     <>
       <PageHeader
         title="津智助理 - 试点概览"
-        subtitle={`实时社区治理指标与 AI 决策辅助系统，当前待处理工单 ${pendingCount} 件。`}
+        subtitle={`把居民诉求先整理清楚，再交给人判断。当前待处理工单 ${pendingCount} 件。`}
         action={
           <div className="header-actions">
-            <button type="button">过去 30 天</button>
+            <button
+              type="button"
+              onClick={() => setPeriod(periods[(periods.indexOf(period) + 1) % periods.length])}
+              aria-label="切换统计周期"
+            >
+              {period}
+            </button>
             <button className="primary" type="button" onClick={exportReport}>
               <Download size={16} />
               导出报告
@@ -866,6 +947,17 @@ function Overview({
         <StatCard icon={<AlertTriangle />} label="高优先级事件" value={String(urgentCount)} tone="danger" trend="高危" />
         <StatCard icon={<Sparkles />} label="AI 识别准确率" value={accuracyLabel} badge="复核后更新" tone="ai" />
         <StatCard icon={<Gauge />} label="平均响应时间" value="1.4h" hint="平均处理" />
+      </section>
+      <section className="overview-command panel">
+        <div>
+          <p className="breadcrumb">今日处置主线</p>
+          <h2>先看高风险，再补通知口径，最后导出试点证据。</h2>
+        </div>
+        <div className="command-steps">
+          <button type="button" onClick={goTickets}>复核高紧急工单</button>
+          <button type="button" onClick={openNotice}>生成居民通知</button>
+          <button type="button" onClick={exportReport}>导出周报草稿</button>
+        </div>
       </section>
       <section className="overview-grid">
         <div className="panel chart-panel">
@@ -918,6 +1010,7 @@ function TicketsCenter({
   applySuggestion,
   openAdvancedFilter,
   openHotspotReport,
+  searchQuery,
 }: {
   tickets: Ticket[]
   pendingCount: number
@@ -937,6 +1030,7 @@ function TicketsCenter({
   applySuggestion: () => void
   openAdvancedFilter: () => void
   openHotspotReport: () => void
+  searchQuery: string
 }) {
   const recommendedTicket = tickets.find((ticket) => ticket.id === '#88291') || tickets[0]
 
@@ -977,6 +1071,13 @@ function TicketsCenter({
             {isAnalyzing ? '分析中...' : '智能分析并入库'}
           </button>
         </div>
+        {isAnalyzing && (
+          <div className="analysis-skeleton" aria-live="polite">
+            <span />
+            <span />
+            <span />
+          </div>
+        )}
       </section>
       <section className="toolbar panel">
         <div className="segmented">
@@ -1047,7 +1148,13 @@ function TicketsCenter({
               </span>
             </button>
           ))}
-          {tickets.length === 0 && <div className="empty-row">当前筛选下暂无工单</div>}
+          {tickets.length === 0 && (
+            <div className="empty-row empty-state">
+              <ClipboardList size={24} />
+              <strong>{searchQuery.trim() ? '没有匹配的工单' : '当前筛选下暂无工单'}</strong>
+              <span>{searchQuery.trim() ? '换一个关键词，或清空顶部搜索后继续查看。' : '切回“全部”或导入样例数据后继续演示。'}</span>
+            </div>
+          )}
         </div>
       </section>
       <section className="suggestion-grid">
@@ -1180,6 +1287,8 @@ function NoticeWorkbench({
 }) {
   const impacted = tickets.filter((ticket) => ticket.urgency === '高紧急').length
   const activeTicket = sourceTicket || tickets.find((ticket) => ticket.urgency === '高紧急') || tickets[0]
+  const [attachmentAdded, setAttachmentAdded] = useState(false)
+  const [draftSaved, setDraftSaved] = useState(false)
   const coreStatement = activeTicket
     ? `关于${activeTicket.location}${activeTicket.category}事项的通知。${activeTicket.summary} 请相关居民留意社区后续安排，重点人群可联系网格员获取协助。`
     : `关于${topic}的社区通知。请居民留意社区后续安排，如需帮助可联系网格员或物业。`
@@ -1217,7 +1326,9 @@ function NoticeWorkbench({
             <div>
               <strong>AI 策略洞察</strong>
               <p>监测到 {impacted || 3} 个高优先级事项，建议在社区群补充“重点人群协助”说明，并同步短信触达重点楼栋。</p>
-              <button type="button">采纳并添加附件</button>
+              <button type="button" onClick={() => setAttachmentAdded(true)}>
+                {attachmentAdded ? '已添加建议附件' : '采纳并添加附件'}
+              </button>
             </div>
           </div>
         </aside>
@@ -1293,7 +1404,9 @@ function NoticeWorkbench({
               <p>目标受众：{impacted > 0 ? '高风险楼栋、社区工作群与重点居民' : '全体居民'} · 操作人：张建国 · 发布后写入通知台账</p>
             </div>
             <div className="release-actions">
-              <button type="button">存为待定草稿</button>
+              <button type="button" onClick={() => setDraftSaved(true)}>
+                {draftSaved ? '已保存草稿' : '存为待定草稿'}
+              </button>
               <button className="primary" type="button" onClick={publishNotice}>
                 <Send size={18} />
                 一键全渠道发布
@@ -1454,8 +1567,12 @@ function ToolboxCard({
 }) {
   return (
     <article className="panel toolbox-card">
-      <div className="tool-card-icon">
-        <Icon size={22} />
+      <div className={`tool-card-visual tool-card-visual-${tool}`}>
+        <div className="tool-card-icon">
+          <Icon size={22} />
+        </div>
+        <span />
+        <span />
       </div>
       <div>
         <span>{meta}</span>
@@ -1494,6 +1611,7 @@ function PilotAnalysis({
   const [feedbackRole, setFeedbackRole] = useState('网格员')
   const [feedbackRating, setFeedbackRating] = useState(5)
   const [feedbackComment, setFeedbackComment] = useState('')
+  const [feedbackError, setFeedbackError] = useState('')
   const report = buildWeeklyReport(tickets, accuracy, feedbackRecords)
   const evaluation = getEvaluationSummary(tickets)
   const trendValues = buildAccuracyTrend(accuracy, evaluation.reviewed)
@@ -1503,7 +1621,10 @@ function PilotAnalysis({
       : '待收集'
 
   function submitFeedback() {
-    if (!feedbackName.trim() || !feedbackComment.trim()) return
+    if (!feedbackName.trim() || !feedbackComment.trim()) {
+      setFeedbackError('请填写试用者和反馈与卡点后再记录。')
+      return
+    }
     addFeedback({
       name: feedbackName.trim(),
       role: feedbackRole,
@@ -1514,6 +1635,7 @@ function PilotAnalysis({
     setFeedbackRole('网格员')
     setFeedbackRating(5)
     setFeedbackComment('')
+    setFeedbackError('')
   }
 
   return (
@@ -1606,6 +1728,7 @@ function PilotAnalysis({
               反馈与卡点
               <textarea value={feedbackComment} onChange={(event) => setFeedbackComment(event.target.value)} placeholder="记录能否独立完成、哪一步卡住、哪些字段不可信。" rows={5} />
             </label>
+            {feedbackError && <p className="form-error">{feedbackError}</p>}
             <button className="primary-action" type="button" onClick={submitFeedback} disabled={!feedbackName.trim() || !feedbackComment.trim()}>
               记录反馈
             </button>
@@ -1724,6 +1847,26 @@ function SettingsView({
 }
 
 function HelpCenter({ setActiveView }: { setActiveView: (view: ViewKey) => void }) {
+  const [helpQuery, setHelpQuery] = useState('')
+  const [searched, setSearched] = useState(false)
+  const helpItems = [
+    { title: '工单 AI 预处理', desc: '从居民诉求到分类、紧急度、部门建议和人工复核的完整流程。', icon: ClipboardList, view: 'tickets' as const },
+    { title: '通知推送说明', desc: '掌握正式版、居民群版、短信版的生成和分发留痕方式。', icon: Send, view: 'notice' as const },
+    { title: 'AI 海报与宣教视频', desc: '把社区通知转化为海报、流程图和短视频脚本。', icon: Wand2, view: 'toolbox' as const },
+    { title: '数据导出与试点周报', desc: '导出 CSV、复制周报草稿，并形成比赛证据链。', icon: FileDown, view: 'analysis' as const },
+  ]
+  const faqs = [
+    '如何使用 AI 助手自动分类待办事项？',
+    '导入 CSV 后为什么要先做脱敏确认？',
+    '通知分发记录会保存在哪里？',
+    '比赛演示时如何快速展示准确率证据？',
+  ]
+  const keyword = helpQuery.trim()
+  const visibleHelpItems = keyword
+    ? helpItems.filter((item) => `${item.title} ${item.desc}`.includes(keyword))
+    : helpItems
+  const visibleFaqs = keyword ? faqs.filter((item) => item.includes(keyword)) : faqs
+
   return (
     <>
       <PageHeader
@@ -1732,16 +1875,16 @@ function HelpCenter({ setActiveView }: { setActiveView: (view: ViewKey) => void 
       />
       <section className="help-search panel">
         <Search size={20} />
-        <input defaultValue="" placeholder="搜索帮助、流程或常见问题" />
-        <button className="primary" type="button">搜索帮助</button>
+        <input value={helpQuery} onChange={(event) => setHelpQuery(event.target.value)} placeholder="搜索帮助、流程或常见问题" />
+        <button className="primary" type="button" onClick={() => setSearched(true)}>搜索帮助</button>
       </section>
+      {searched && (
+        <div className="help-search-result">
+          找到 {visibleHelpItems.length + visibleFaqs.length} 条相关内容
+        </div>
+      )}
       <section className="help-grid">
-        {[
-          { title: '工单 AI 预处理', desc: '从居民诉求到分类、紧急度、部门建议和人工复核的完整流程。', icon: ClipboardList, view: 'tickets' as const },
-          { title: '通知推送说明', desc: '掌握正式版、居民群版、短信版的生成和分发留痕方式。', icon: Send, view: 'notice' as const },
-          { title: 'AI 海报与宣教视频', desc: '把社区通知转化为海报、流程图和短视频脚本。', icon: Wand2, view: 'toolbox' as const },
-          { title: '数据导出与试点周报', desc: '导出 CSV、复制周报草稿，并形成比赛证据链。', icon: FileDown, view: 'analysis' as const },
-        ].map((item) => {
+        {visibleHelpItems.map((item) => {
           const Icon = item.icon
           return (
             <button className="help-card" type="button" key={item.title} onClick={() => setActiveView(item.view)}>
@@ -1755,12 +1898,7 @@ function HelpCenter({ setActiveView }: { setActiveView: (view: ViewKey) => void 
       <section className="help-columns">
         <div className="panel">
           <PanelTitle title="常见问题" />
-          {[
-            '如何使用 AI 助手自动分类待办事项？',
-            '导入 CSV 后为什么要先做脱敏确认？',
-            '通知分发记录会保存在哪里？',
-            '比赛演示时如何快速展示准确率证据？',
-          ].map((item) => (
+          {visibleFaqs.map((item) => (
             <div className="faq-row" key={item}>
               <CheckCircle2 size={17} />
               <span>{item}</span>
@@ -1804,6 +1942,7 @@ function TicketDrawer({
       <aside className="drawer large modal-panel ticket-modal">
         <DrawerHeader title="工单 AI 预处理" subtitle={ticket.id} close={close} />
         <div className="modal-scroll-content">
+          <TicketProgress status={ticket.status} review={ticket.review} />
           <div className="drawer-grid">
             <section className="panel">
               <PanelTitle title="原始诉求" />
@@ -1859,6 +1998,26 @@ function TicketDrawer({
         </div>
       </aside>
     </div>
+  )
+}
+
+function TicketProgress({ status, review }: { status: TicketStatus; review?: Ticket['review'] }) {
+  const steps = [
+    { label: '诉求登记', active: true },
+    { label: 'AI 预处理', active: true },
+    { label: '人工复核', active: status !== '待预处理' || Boolean(review) },
+    { label: '处置留痕', active: status === '已形成建议' || status === '已归档' },
+  ]
+
+  return (
+    <section className="ticket-progress" aria-label="工单处理进度">
+      {steps.map((step, index) => (
+        <div className={step.active ? 'done' : ''} key={step.label}>
+          <b>{index + 1}</b>
+          <span>{step.label}</span>
+        </div>
+      ))}
+    </section>
   )
 }
 
@@ -2166,8 +2325,17 @@ function PosterToolModal({
         <button type="button" onClick={undoDraft} disabled={history.length === 0}>撤销</button>
         <button type="button" onClick={redoDraft} disabled={future.length === 0}>重做</button>
         <span />
-        <button type="button" onClick={() => copyText('tool', posterText)}>{copied === 'tool' ? '已复制' : '保存草稿'}</button>
-        <button className="primary" type="button" onClick={() => downloadText(`${topic}-poster.txt`, posterText)}>下载海报文案</button>
+        <button type="button" onClick={() => copyText('tool', posterText)}>{copied === 'tool' ? '已复制' : '复制草稿'}</button>
+        <button
+          className="primary"
+          type="button"
+          onClick={() => {
+            downloadText(`${topic}-poster.txt`, posterText)
+            showToast('海报文案已开始下载')
+          }}
+        >
+          下载海报文案
+        </button>
       </div>
     </>
   )
@@ -2235,6 +2403,11 @@ function VideoToolModal({
     showToast('素材已加入分镜库')
   }
 
+  function selectAsset(index: number, asset: string) {
+    setAssetIndex(index)
+    showToast(`已选择素材：${asset}`)
+  }
+
   return (
     <>
       <section className="video-modal-grid">
@@ -2290,7 +2463,7 @@ function VideoToolModal({
                   className={assetIndex === originalIndex ? 'selected asset-thumb' : 'asset-thumb'}
                   type="button"
                   key={asset}
-                  onClick={() => setAssetIndex(originalIndex)}
+                  onClick={() => selectAsset(originalIndex, asset)}
                   title={asset}
                 />
                 )
@@ -2307,7 +2480,15 @@ function VideoToolModal({
       </div>
       <div className="tool-modal-footer">
         <span />
-        <button type="button" onClick={() => downloadText(`${topic}-video-script.txt`, script)}>保存脚本</button>
+        <button
+          type="button"
+          onClick={() => {
+            downloadText(`${topic}-video-script.txt`, script)
+            showToast('视频脚本已开始下载')
+          }}
+        >
+          下载脚本
+        </button>
         <button className="primary" type="button" onClick={startRender} disabled={rendering}>
           {rendering ? '生成中...' : rendered ? '重新生成' : '生成并渲染'}
         </button>
@@ -2423,7 +2604,7 @@ function MediaToolModal({
         <label className="footer-check"><input type="checkbox" checked={immediateRelease} onChange={() => setImmediateRelease(!immediateRelease)} /> 立即发布</label>
         <label className="footer-check"><input type="checkbox" checked={syncPortal} onChange={() => setSyncPortal(!syncPortal)} /> 同步区级门户</label>
         <span />
-        <button type="button" onClick={() => copyText('tool', articleText)}>{copied === 'tool' ? '已复制' : '保存草稿'}</button>
+        <button type="button" onClick={() => copyText('tool', articleText)}>{copied === 'tool' ? '已复制' : '复制草稿'}</button>
         <button className="primary" type="button" onClick={publishArticle}>发布到{platform}</button>
       </div>
     </>
@@ -2460,6 +2641,7 @@ function FlowToolModal({
 
   function syncFlow(nextSteps = steps) {
     setOutput(buildFlowOutput(topic, nextSteps))
+    showToast('流程预览已重新生成')
   }
 
   function addStep() {
@@ -2477,13 +2659,17 @@ function FlowToolModal({
 
   function moveStep(direction: -1 | 1) {
     const targetIndex = selectedStep + direction
-    if (targetIndex < 0 || targetIndex >= steps.length) return
+    if (targetIndex < 0 || targetIndex >= steps.length) {
+      showToast(direction < 0 ? '已经是第一个步骤' : '已经是最后一个步骤')
+      return
+    }
     const nextSteps = [...steps]
     const [current] = nextSteps.splice(selectedStep, 1)
     nextSteps.splice(targetIndex, 0, current)
     setSteps(nextSteps)
     setSelectedStep(targetIndex)
     setOutput(buildFlowOutput(topic, nextSteps))
+    showToast(direction < 0 ? '步骤已上移' : '步骤已下移')
   }
 
   function removeStep() {
@@ -2495,6 +2681,7 @@ function FlowToolModal({
     setSteps(nextSteps)
     setSelectedStep(Math.max(0, selectedStep - 1))
     setOutput(buildFlowOutput(topic, nextSteps))
+    showToast('步骤已删除')
   }
 
   return (
@@ -2559,7 +2746,14 @@ function FlowToolModal({
         <button type="button" onClick={() => copyText('tool', flowText)}>
           {copied === 'tool' ? '已复制' : '复制流程'}
         </button>
-        <button className="primary" type="button" onClick={() => downloadText(`${topic}.txt`, flowText)}>
+        <button
+          className="primary"
+          type="button"
+          onClick={() => {
+            downloadText(`${topic}.txt`, flowText)
+            showToast('流程文件已开始下载')
+          }}
+        >
           下载流程
         </button>
       </div>
@@ -2571,17 +2765,25 @@ function AssistantDrawer({
   urgentCount,
   close,
   openTickets,
+  openNotice,
+  openReport,
 }: {
   urgentCount: number
   close: () => void
   openTickets: () => void
+  openNotice: () => void
+  openReport: () => void
 }) {
   return (
     <div className="drawer-backdrop">
       <aside className="drawer assistant">
         <DrawerHeader title="津智 AI 助手" subtitle="正在分析您的工作流" close={close} />
-        <p>您好，王管理员。系统检测到 {urgentCount} 个紧急工单需要您优先处理。</p>
-        <button className="primary-action" type="button" onClick={openTickets}>立即查看</button>
+        <p>您好，王管理员。系统检测到 {urgentCount} 个紧急工单需要优先处理，建议按“复核、通知、留痕”三步推进。</p>
+        <div className="assistant-plan">
+          <button className="primary-action" type="button" onClick={openTickets}>查看高紧急工单</button>
+          <button type="button" onClick={openNotice}>打开通知台账</button>
+          <button type="button" onClick={openReport}>生成专题报告</button>
+        </div>
       </aside>
     </div>
   )
@@ -2848,7 +3050,8 @@ function PanelTitle({ title, action, onAction }: { title: string; action?: strin
   return (
     <div className="panel-title">
       <h2>{title}</h2>
-      {action && <button type="button" onClick={onAction}>{action}</button>}
+      {action && onAction && <button type="button" onClick={onAction}>{action}</button>}
+      {action && !onAction && <span className="panel-title-meta">{action}</span>}
     </div>
   )
 }
@@ -2898,11 +3101,17 @@ function Badge({ type, children }: { type: Urgency; children: ReactNode }) {
 }
 
 function Field({ label, value, action }: { label: string; value: string; action?: string }) {
+  const [handled, setHandled] = useState(false)
+
   return (
     <div className="field-display">
       <span>{label}</span>
       <strong>{value}</strong>
-      {action && <button type="button">{action}</button>}
+      {action && (
+        <button type="button" onClick={() => setHandled(true)}>
+          {handled ? '已提交' : action}
+        </button>
+      )}
     </div>
   )
 }
@@ -3091,6 +3300,27 @@ function maskSensitive(text: string) {
     .replace(/\d+号楼/g, '**号楼')
     .replace(/\d+号/g, '**号')
     .replace(/[东西南北中]城区/g, '某片区')
+}
+
+function ticketMatchesSearch(ticket: Ticket, query: string) {
+  const keyword = query.trim().toLowerCase()
+  if (!keyword) return true
+  return [
+    ticket.id,
+    ticket.location,
+    ticket.content,
+    ticket.category,
+    ticket.urgency,
+    ticket.emotion,
+    ticket.status,
+    ticket.department,
+    ticket.summary,
+    ticket.review || '',
+    ticket.source || '',
+  ]
+    .join(' ')
+    .toLowerCase()
+    .includes(keyword)
 }
 
 function ticketsToCsv(tickets: Ticket[]) {
