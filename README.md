@@ -9,6 +9,14 @@ npm install
 npm run dev
 ```
 
+## 验证
+
+```bash
+npm run lint
+npm run build
+npm run test:e2e
+```
+
 ## 功能
 
 - 居民诉求分类：类别、紧急程度、情绪、建议部门
@@ -19,6 +27,8 @@ npm run dev
 - 个人中心：演示登录、资料编辑、认证状态、体验设置
 - 试点看板：工单数、高优先级、复核准确率、高频问题
 - Vercel API：`/api/analyze` 和 `/api/notice`
+
+前端会优先调用 Vercel API；本地开发或 API 不可用时自动退回浏览器内规则引擎，保证演示不断流。
 
 ## OPC 项目包
 
@@ -50,9 +60,20 @@ npm run dev
 
 不配置密钥时，接口会自动使用本地规则引擎，方便演示。
 
-部署到 Vercel 后可配置环境变量：
+本地开发可在 `.env.local` 中配置 DeepSeek：
 
 ```bash
+MODEL_PROVIDER=deepseek
+DEEPSEEK_API_KEY=你的 DeepSeek Key
+DEEPSEEK_MODEL=deepseek-chat
+```
+
+部署到 Vercel 后也需要配置同名环境变量。
+
+如需切回阿里云百炼 DashScope，可配置：
+
+```bash
+MODEL_PROVIDER=dashscope
 DASHSCOPE_API_KEY=你的通义千问 DashScope Key
 DASHSCOPE_MODEL=qwen-plus
 ```

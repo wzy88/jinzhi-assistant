@@ -24,6 +24,7 @@ OPC 参赛叙事应围绕一条主线展开：
 | 复盘 | 展示单人 + AI 的效率提升 | [OPC 工作流复盘](./OPC_WORKFLOW_REVIEW.md) |
 | 数据 | 支撑导入和评测 | [样例数据说明](./SAMPLE_DATA_GUIDE.md)、`../../data/sample_tickets.csv` |
 | 扩展 | 说明语音、天津方言和服务接入路线 | [语音与天津方言识别方案](./VOICE_DIALECT_PLAN.md)、[服务端与方言识别落地说明](./SERVICE_AND_DIALECT_RUNBOOK.md) |
+| 补齐 | 跟踪代码侧和试点侧缺口 | [下一步补齐清单](./NEXT_ACTION_CHECKLIST.md) |
 
 ## 2. 当前证据状态
 
